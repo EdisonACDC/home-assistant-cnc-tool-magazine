@@ -1,0 +1,25 @@
+name: CNC Tool Magazine
+version: "0.1.0"
+slug: cnc_tool_magazine
+description: Gestione del magazzino utensili CNC da 30 posti per PentaMac/Visel
+url: https://github.com/EdisonACDC/home-assistant-cnc-tool-magazine
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: auto
+init: false
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:toolbox
+panel_title: Magazzino CNC
+panel_admin: true
+watchdog: http://[HOST]:[PORT:8099]/health
+stage: experimental
+backup: hot
+options:
+  machine_name: PentaMac / Visel
+  magazine_slots: 30
+schema:
+  machine_name: str
+  magazine_slots: "int(30,30)"

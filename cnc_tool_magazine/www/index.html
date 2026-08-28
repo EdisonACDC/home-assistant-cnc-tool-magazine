@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <title>Magazzino CNC</title>
+  <link rel="stylesheet" href="static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow" id="machine-name">PentaMac / Visel</p>
+      <h1>Magazzino utensili CNC</h1>
+      <p class="subtitle">Le posizioni 1–30 corrispondono esattamente al magazzino della fresatrice.</p>
+    </div>
+    <div class="actions">
+      <button class="button secondary" id="export-button">Esporta dati</button>
+      <button class="button" id="refresh-button">Aggiorna</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="summary" aria-label="Riepilogo">
+      <article><strong id="occupied-count">0</strong><span>posti occupati</span></article>
+      <article><strong id="free-count">30</strong><span>posti liberi</span></article>
+      <article><strong id="material-count">0</strong><span>parametri materiali</span></article>
+    </section>
+
+    <section class="toolbar">
+      <label class="search">
+        <span>Cerca</span>
+        <input id="search" type="search" placeholder="T, descrizione, tipo o materiale…">
+      </label>
+      <label>
+        <span>Visualizza</span>
+        <select id="filter">
+          <option value="all">Tutti i 30 posti</option>
+          <option value="occupied">Solo occupati</option>
+          <option value="free">Solo liberi</option>
+        </select>
+      </label>
+    </section>
+
+    <section id="tool-grid" class="tool-grid" aria-live="polite"></section>
+    <p id="empty-state" class="empty-state" hidden>Nessun utensile corrisponde alla ricerca.</p>
+  </main>
+
+  <dialog id="tool-dialog">
+    <form id="tool-form">
+      <div class="dialog-head">
+        <div><p class="eyebrow">Posizione fisica</p><h2 id="dialog-title">Posto 1</h2></div>
+        <button type="button" class="icon-button" id="close-dialog" aria-label="Chiudi">×</button>
+      </div>
+
+      <input type="hidden" id="slot" name="slot">
+      <div class="form-grid three">
+        <label><span>Numero T</span><input name="t_number" type="number" min="0" step="1"></label>
+        <label><span>Correttore D</span><input name="d_offset" type="number" min="0" step="1"></label>
+        <label><span>Correttore H</span><input name="h_offset" type="number" min="0" step="1"></label>
+      </div>
+      <label><span>Descrizione utensile</span><input name="description" maxlength="120" placeholder="Es. Fresa MD Ø10 sgrossatura"></label>
+      <div class="form-grid">
+        <label><span>Tipo utensile</span><input name="tool_type" maxlength="80" placeholder="Fresa, punta, maschio…"></label>
+        <label><span>Numero taglienti Z</span><input name="flutes" type="number" min="1" max="100" step="1"></label>
+        <label><span>Diametro reale (mm)</span><input name="diameter_mm" type="number" min="0" step="0.001"></label>
+        <label><span>Altezza/Lunghezza (mm)</span><input name="length_mm" type="number" min="0" step="0.001"></label>
+      </div>
+      <label><span>Note utensile</span><textarea name="notes" rows="2" maxlength="500"></textarea></label>
+      <div class="form-actions">
+        <button class="button danger" type="button" id="reset-tool">Svuota posizione</button>
+        <button class="button" type="submit">Salva utensile</button>
+      </div>
+    </form>
+
+    <section class="cutting-section">
+      <div class="section-title"><div><p class="eyebrow">Lavorazione</p><h3>Parametri per materiale</h3></div></div>
+      <div id="cutting-list" class="cutting-list"></div>
+      <form id="cutting-form" class="cutting-form">
+        <input type="hidden" name="id">
+        <div class="form-grid">
+          <label><span>Materiale *</span><input name="material" required placeholder="Acciaio C45, alluminio…"></label>
+          <label><span>Refrigerazione</span><input name="coolant" placeholder="Emulsione, aria…"></label>
+          <label><span>Vc (m/min)</span><input name="vc_m_min" type="number" min="0" step="0.1"></label>
+          <label><span>Giri S (rpm)</span><input name="rpm" type="number" min="0" step="1"></label>
+          <label><span>Fz (mm/dente)</span><input name="fz_mm_tooth" type="number" min="0" step="0.001"></label>
+          <label><span>Avanzamento F (mm/min)</span><input name="feed_mm_min" type="number" min="0" step="0.1"></label>
+          <label><span>Profondità ap (mm)</span><input name="ap_mm" type="number" min="0" step="0.01"></label>
+          <label><span>Larghezza ae (mm)</span><input name="ae_mm" type="number" min="0" step="0.01"></label>
+        </div>
+        <label><span>Note materiale</span><textarea name="notes" rows="2" maxlength="500"></textarea></label>
+        <div class="form-actions"><button class="button secondary" type="button" id="clear-cutting">Nuovo</button><button class="button" type="submit">Salva parametri</button></div>
+      </form>
+    </section>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="static/app.js"></script>
+</body>
+</html>
