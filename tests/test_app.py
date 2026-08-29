@@ -55,6 +55,27 @@ class DatabaseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             app.upsert_cutting(1, {"material": ""})
 
+    def test_archives_active_tool_with_cutting_parameters(self):
+        app.update_tool(5, {"description": "Fresa Ø8", "diameter_mm": 8})
+        app.upsert_cutting(5, {"material": "C45", "rpm": 5000})
+        history_id = app.archive_active_tool(5)
+        tool = app.list_tools()[4]
+        self.assertGreater(history_id, 0)
+        self.assertEqual("", tool["description"])
+        self.assertEqual(1, len(tool["history"]))
+        self.assertEqual("Fresa Ø8", tool["history"][0]["description"])
+        self.assertEqual("C45", tool["history"][0]["cutting_parameters"][0]["material"])
+
+    def test_activating_history_swaps_current_tool(self):
+        app.update_tool(9, {"description": "Utensile A"})
+        history_id = app.archive_active_tool(9)
+        app.update_tool(9, {"description": "Utensile B"})
+        app.activate_history_tool(9, history_id)
+        tool = app.list_tools()[8]
+        self.assertEqual("Utensile A", tool["description"])
+        self.assertEqual(1, len(tool["history"]))
+        self.assertEqual("Utensile B", tool["history"][0]["description"])
+
 
 if __name__ == "__main__":
     unittest.main()

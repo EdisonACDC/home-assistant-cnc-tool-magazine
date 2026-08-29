@@ -6,6 +6,7 @@ const dialog = document.querySelector("#tool-dialog");
 const toolForm = document.querySelector("#tool-form");
 const cuttingForm = document.querySelector("#cutting-form");
 const cuttingList = document.querySelector("#cutting-list");
+const historyList = document.querySelector("#history-list");
 const fields = ["t_number","d_offset","h_offset","diameter_mm","length_mm","description","tool_type","flutes","notes"];
 const cuttingFields = ["id","material","coolant","vc_m_min","rpm","fz_mm_tooth","feed_mm_min","ap_mm","ae_mm","notes"];
 
@@ -53,7 +54,7 @@ function toolCard(tool) {
     <h3>${esc(title)}</h3>
     <div class="offsets"><span>T<b>${esc(tool.t_number ?? "—")}</b></span><span>D<b>${esc(tool.d_offset ?? "—")}</b></span><span>H<b>${esc(tool.h_offset ?? "—")}</b></span></div>
     <p class="measure">Ø ${esc(tool.diameter_mm ?? "—")} mm · L ${esc(tool.length_mm ?? "—")} mm${tool.flutes ? ` · Z${esc(tool.flutes)}` : ""}</p>
-    <div class="material-chips">${materials}</div>
+    <div class="material-chips">${materials}${tool.history.length ? `<span class="chip">${tool.history.length} storico</span>` : ""}</div>
   </button>`;
 }
 
@@ -75,7 +76,21 @@ function openTool(slot) {
   fields.forEach(field => { toolForm.elements[field].value = tool[field] ?? ""; });
   clearCutting();
   renderCutting(tool);
+  renderHistory(tool);
   dialog.showModal();
+}
+
+function renderHistory(tool) {
+  historyList.innerHTML = tool.history.length ? tool.history.map(item => `
+    <article class="history-row" data-id="${item.history_id}">
+      <div><strong>${esc(item.description || item.tool_type || "Utensile senza descrizione")}</strong><small>Archiviato ${esc(new Date(item.archived_at).toLocaleString("it-IT"))}</small></div>
+      <div><small>T</small>${esc(item.t_number ?? "—")}</div>
+      <div><small>D</small>${esc(item.d_offset ?? "—")}</div>
+      <div><small>H</small>${esc(item.h_offset ?? "—")}</div>
+      <div class="row-actions"><button class="mini-button activate" type="button">Monta</button><button class="mini-button delete-history delete" type="button">Elimina</button></div>
+    </article>`).join("") : `<p class="subtitle">Nessun utensile nello storico di questa posizione.</p>`;
+  historyList.querySelectorAll(".activate").forEach(button => button.addEventListener("click", () => activateHistory(Number(button.closest("article").dataset.id))));
+  historyList.querySelectorAll(".delete-history").forEach(button => button.addEventListener("click", () => removeHistory(Number(button.closest("article").dataset.id))));
 }
 
 function renderCutting(tool) {
@@ -142,6 +157,37 @@ function openRefresh() {
   const tool = state.tools.find(item => item.slot === state.activeSlot);
   fields.forEach(field => { toolForm.elements[field].value = tool[field] ?? ""; });
   renderCutting(tool);
+  renderHistory(tool);
+}
+
+document.querySelector("#archive-tool").addEventListener("click", async () => {
+  if (!confirm(`Archiviare l'utensile attivo del posto ${state.activeSlot} e liberare la posizione per uno nuovo?`)) return;
+  try {
+    await request(`api/tools/${state.activeSlot}/archive`, {method:"POST"});
+    await loadTools();
+    openRefresh();
+    toast("Utensile archiviato: ora puoi inserire quello nuovo");
+  } catch (error) { toast(error.message, true); }
+});
+
+async function activateHistory(id) {
+  if (!confirm("Montare questo utensile? Quello attualmente attivo verrà spostato nello storico.")) return;
+  try {
+    await request(`api/tools/${state.activeSlot}/history/${id}/activate`, {method:"POST"});
+    await loadTools();
+    openRefresh();
+    toast("Utensile storico montato");
+  } catch (error) { toast(error.message, true); }
+}
+
+async function removeHistory(id) {
+  if (!confirm("Eliminare definitivamente questo utensile dallo storico?")) return;
+  try {
+    await request(`api/tools/${state.activeSlot}/history/${id}`, {method:"DELETE"});
+    await loadTools();
+    openRefresh();
+    toast("Utensile eliminato dallo storico");
+  } catch (error) { toast(error.message, true); }
 }
 
 document.querySelector("#reset-tool").addEventListener("click", async () => {

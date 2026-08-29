@@ -95,6 +95,14 @@ def init_db(slot_count: int = 30) -> None:
                 updated_at TEXT NOT NULL,
                 UNIQUE(slot, material)
             );
+
+            CREATE TABLE IF NOT EXISTS tool_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                slot INTEGER NOT NULL CHECK(slot BETWEEN 1 AND 30),
+                tool_json TEXT NOT NULL,
+                cutting_json TEXT NOT NULL,
+                archived_at TEXT NOT NULL
+            );
             """
         )
         db.executemany(
@@ -114,11 +122,27 @@ def list_tools() -> list[dict]:
             row_to_dict(row)
             for row in db.execute("SELECT * FROM cutting_parameters ORDER BY slot, material COLLATE NOCASE")
         ]
+        history_rows = [
+            row_to_dict(row)
+            for row in db.execute("SELECT * FROM tool_history ORDER BY slot, archived_at DESC, id DESC")
+        ]
     by_slot: dict[int, list[dict]] = {}
     for item in cuts:
         by_slot.setdefault(item["slot"], []).append(item)
     for tool in tools:
         tool["cutting_parameters"] = by_slot.get(tool["slot"], [])
+        tool["history"] = []
+    by_tool_slot = {tool["slot"]: tool for tool in tools}
+    for item in history_rows:
+        try:
+            archived_tool = json.loads(item["tool_json"])
+            archived_cuts = json.loads(item["cutting_json"])
+        except (TypeError, ValueError):
+            continue
+        archived_tool.update(
+            {"history_id": item["id"], "archived_at": item["archived_at"], "cutting_parameters": archived_cuts}
+        )
+        by_tool_slot[item["slot"]]["history"].append(archived_tool)
     return tools
 
 
@@ -161,17 +185,94 @@ def update_tool(slot: int, payload: dict) -> dict:
     return row_to_dict(row)
 
 
-def reset_tool(slot: int) -> None:
-    with connect() as db:
-        db.execute("DELETE FROM cutting_parameters WHERE slot = ?", (slot,))
-        result = db.execute(
+def _reset_tool(db: sqlite3.Connection, slot: int) -> None:
+    db.execute("DELETE FROM cutting_parameters WHERE slot = ?", (slot,))
+    result = db.execute(
             """UPDATE tools SET t_number = ?, d_offset = ?, h_offset = ?,
                diameter_mm = NULL, length_mm = NULL, description = '', tool_type = '',
                flutes = NULL, notes = '', updated_at = ? WHERE slot = ?""",
             (slot, slot, slot, utc_now(), slot),
         )
+    if result.rowcount != 1:
+        raise LookupError("Posizione non trovata")
+
+
+def reset_tool(slot: int) -> None:
+    with connect() as db:
+        _reset_tool(db, slot)
+
+
+def _active_snapshot(db: sqlite3.Connection, slot: int) -> tuple[dict, list[dict]]:
+    row = db.execute("SELECT * FROM tools WHERE slot = ?", (slot,)).fetchone()
+    if not row:
+        raise LookupError("Posizione non trovata")
+    tool = row_to_dict(row)
+    tool.pop("slot", None)
+    cuts = []
+    for cutting_row in db.execute("SELECT * FROM cutting_parameters WHERE slot = ? ORDER BY material", (slot,)):
+        item = row_to_dict(cutting_row)
+        item.pop("id", None)
+        item.pop("slot", None)
+        cuts.append(item)
+    return tool, cuts
+
+
+def _has_tool_data(tool: dict) -> bool:
+    return any(tool.get(field) not in (None, "") for field in ("description", "tool_type", "diameter_mm", "length_mm", "flutes", "notes"))
+
+
+def _store_history(db: sqlite3.Connection, slot: int, tool: dict, cuts: list[dict]) -> int:
+    cursor = db.execute(
+        "INSERT INTO tool_history(slot, tool_json, cutting_json, archived_at) VALUES (?, ?, ?, ?)",
+        (slot, json.dumps(tool, ensure_ascii=False), json.dumps(cuts, ensure_ascii=False), utc_now()),
+    )
+    return int(cursor.lastrowid)
+
+
+def archive_active_tool(slot: int) -> int:
+    with connect() as db:
+        tool, cuts = _active_snapshot(db, slot)
+        if not _has_tool_data(tool):
+            raise ValueError("Non c'è un utensile attivo da archiviare")
+        history_id = _store_history(db, slot, tool, cuts)
+        _reset_tool(db, slot)
+    return history_id
+
+
+def activate_history_tool(slot: int, history_id: int) -> None:
+    with connect() as db:
+        archived = db.execute(
+            "SELECT * FROM tool_history WHERE id = ? AND slot = ?", (history_id, slot)
+        ).fetchone()
+        if not archived:
+            raise LookupError("Utensile storico non trovato")
+        active_tool, active_cuts = _active_snapshot(db, slot)
+        if _has_tool_data(active_tool):
+            _store_history(db, slot, active_tool, active_cuts)
+
+        selected_tool = json.loads(archived["tool_json"])
+        selected_cuts = json.loads(archived["cutting_json"])
+        _reset_tool(db, slot)
+        values = {field: selected_tool.get(field) for field in TOOL_FIELDS}
+        values["updated_at"] = utc_now()
+        assignments = ", ".join(f"{field} = ?" for field in values)
+        db.execute(f"UPDATE tools SET {assignments} WHERE slot = ?", [*values.values(), slot])
+        for cutting in selected_cuts:
+            cut_values = {field: cutting.get(field) for field in CUTTING_FIELDS}
+            cut_values["updated_at"] = utc_now()
+            columns = ["slot", *cut_values.keys()]
+            db.execute(
+                f"INSERT INTO cutting_parameters ({', '.join(columns)}) VALUES ({', '.join('?' for _ in columns)})",
+                [slot, *cut_values.values()],
+            )
+        db.execute("DELETE FROM tool_history WHERE id = ?", (history_id,))
+
+
+def delete_history_tool(slot: int, history_id: int) -> None:
+    with connect() as db:
+        result = db.execute("DELETE FROM tool_history WHERE id = ? AND slot = ?", (history_id, slot))
         if result.rowcount != 1:
-            raise LookupError("Posizione non trovata")
+            raise LookupError("Utensile storico non trovato")
 
 
 def upsert_cutting(slot: int, payload: dict) -> dict:
@@ -274,17 +375,41 @@ class Handler(BaseHTTPRequestHandler):
         except LookupError as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.NOT_FOUND)
 
+    def do_POST(self) -> None:
+        path = self.path_only()
+        try:
+            archive_match = re.fullmatch(r"/api/tools/(\d+)/archive", path)
+            activate_match = re.fullmatch(r"/api/tools/(\d+)/history/(\d+)/activate", path)
+            if archive_match:
+                history_id = archive_active_tool(self.valid_slot(archive_match.group(1)))
+                self.send_json({"ok": True, "history_id": history_id})
+                return
+            if activate_match:
+                activate_history_tool(self.valid_slot(activate_match.group(1)), int(activate_match.group(2)))
+                self.send_json({"ok": True})
+                return
+            self.send_error(HTTPStatus.NOT_FOUND)
+        except (ValueError, TypeError, json.JSONDecodeError) as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+        except LookupError as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.NOT_FOUND)
+
     def do_DELETE(self) -> None:
         path = self.path_only()
         try:
             tool_match = re.fullmatch(r"/api/tools/(\d+)", path)
             cutting_match = re.fullmatch(r"/api/tools/(\d+)/cutting/(\d+)", path)
+            history_match = re.fullmatch(r"/api/tools/(\d+)/history/(\d+)", path)
             if tool_match:
                 reset_tool(self.valid_slot(tool_match.group(1)))
                 self.send_json({"ok": True})
                 return
             if cutting_match:
                 delete_cutting(self.valid_slot(cutting_match.group(1)), int(cutting_match.group(2)))
+                self.send_json({"ok": True})
+                return
+            if history_match:
+                delete_history_tool(self.valid_slot(history_match.group(1)), int(history_match.group(2)))
                 self.send_json({"ok": True})
                 return
             self.send_error(HTTPStatus.NOT_FOUND)

@@ -8,6 +8,7 @@ App (add-on) per Home Assistant dedicata alla gestione del magazzino utensili di
 - Campi modificabili per numero utensile `T`, correttore diametro `D` e correttore altezza `H`.
 - Descrizione, tipo, numero taglienti, diametro e lunghezza reali dell'utensile.
 - Parametri di taglio separati per ogni materiale: Vc, S, Fz, F, ap, ae e refrigerazione.
+- Un utensile attivo per posizione, con storico degli utensili sostituiti e possibilità di rimontarli.
 - Ricerca, filtri ed esportazione JSON.
 - Database SQLite persistente incluso nei backup di Home Assistant.
 - Interfaccia Ingress accessibile direttamente dal menu laterale.

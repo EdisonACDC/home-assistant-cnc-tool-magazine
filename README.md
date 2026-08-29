@@ -20,6 +20,8 @@ Poi installa **CNC Tool Magazine** dallo store.
 - parametri Vc, S, Fz, F, ap e ae per ogni materiale;
 - interfaccia Ingress per Home Assistant;
 - salvataggio persistente SQLite ed esportazione JSON.
+- un utensile attivo per posizione e storico illimitato degli utensili sostituiti;
+- riattivazione rapida di un utensile storico con tutti i suoi parametri di taglio.
 
 > Stato: versione iniziale sperimentale. L'integrazione diretta con il controllo Visel verrà valutata dopo aver verificato il protocollo disponibile sulla macchina.
 

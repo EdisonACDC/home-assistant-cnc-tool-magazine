@@ -69,9 +69,15 @@
       <label><span>Note utensile</span><textarea name="notes" rows="2" maxlength="500"></textarea></label>
       <div class="form-actions">
         <button class="button danger" type="button" id="reset-tool">Svuota posizione</button>
+        <button class="button secondary" type="button" id="archive-tool">Archivia e inserisci nuovo</button>
         <button class="button" type="submit">Salva utensile</button>
       </div>
     </form>
+
+    <section class="history-section">
+      <div class="section-title"><div><p class="eyebrow">Utensili precedenti</p><h3>Storico della posizione</h3></div></div>
+      <div id="history-list" class="history-list"></div>
+    </section>
 
     <section class="cutting-section">
       <div class="section-title"><div><p class="eyebrow">Lavorazione</p><h3>Parametri per materiale</h3></div></div>
