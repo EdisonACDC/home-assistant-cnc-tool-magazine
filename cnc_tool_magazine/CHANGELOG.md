@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0
+
+- Sostituite le 16 icone schematiche con immagini realistiche 3D degli utensili.
+- Le immagini trasparenti sono ottimizzate a 256 × 256 pixel per una visualizzazione uniforme.
+- Le associazioni già salvate restano valide negli utensili montati, nello storico e nei popup dei materiali.
+
 ## 0.5.0
 
 - Aggiunto un selettore con 16 icone dedicate agli utensili da fresatrice.
