@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0
+
+- Aggiunta l'esportazione PDF completa mantenendo disponibile il backup JSON.
+- Il PDF contiene la panoramica di tutte le 30 posizioni, compresi gli spazi liberi.
+- Per ogni posizione sono inclusi l'utensile montato, tutti gli utensili archiviati e i parametri di taglio per materiale.
+
 ## 0.6.0
 
 - Sostituite le 16 icone schematiche con immagini realistiche 3D degli utensili.
