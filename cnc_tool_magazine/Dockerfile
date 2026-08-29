@@ -14,7 +14,7 @@ WORKDIR /app
 COPY app.py /app/app.py
 COPY www /app/www
 COPY run.sh /run.sh
-RUN chmod a+x /run.sh
+RUN pip install --no-cache-dir reportlab==4.4.9 && chmod a+x /run.sh
 
 EXPOSE 8099
 CMD ["/run.sh"]

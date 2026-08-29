@@ -89,6 +89,18 @@ class DatabaseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             app.update_tool(1, {"icon": "not-an-icon"})
 
+    def test_pdf_export_contains_active_archived_and_all_positions(self):
+        app.update_tool(3, {"description": "Fresa attiva", "icon": "end_mill", "diameter_mm": 10})
+        app.upsert_cutting(3, {"material": "C45", "rpm": 4200, "feed_mm_min": 620})
+        app.update_tool(7, {"description": "Punta archiviata", "icon": "drill"})
+        app.archive_active_tool(7)
+        tools = app.list_tools()
+        pdf = app.build_pdf_report(tools, {"machine_name": "PentaMac / Visel"}, app.utc_now())
+        self.assertTrue(pdf.startswith(b"%PDF-"))
+        self.assertGreater(len(pdf), 5000)
+        self.assertEqual(30, len(tools))
+        self.assertEqual(1, len(tools[6]["history"]))
+
 
 if __name__ == "__main__":
     unittest.main()

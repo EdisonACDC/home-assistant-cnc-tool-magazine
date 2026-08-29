@@ -329,6 +329,19 @@ document.querySelector("#export-button").addEventListener("click", async () => {
   } catch (error) { toast(error.message, true); }
 });
 
+document.querySelector("#export-pdf-button").addEventListener("click", async () => {
+  try {
+    const response = await fetch("api/export/pdf");
+    if (!response.ok) throw new Error(`Errore HTTP ${response.status}`);
+    const blob = await response.blob();
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `cnc-tool-magazine-${new Date().toISOString().slice(0,10)}.pdf`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  } catch (error) { toast(error.message, true); }
+});
+
 let toastTimer;
 function toast(message, error = false) {
   const element = document.querySelector("#toast");
