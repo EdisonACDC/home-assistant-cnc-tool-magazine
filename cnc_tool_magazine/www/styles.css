@@ -50,7 +50,7 @@ textarea { resize: vertical; }
 .tool-card h3 { font-size: 1rem; margin-bottom: .7rem; min-height: 2.4em; }
 .tool-title { display: flex; align-items: flex-start; gap: .65rem; }
 .tool-title h3 { flex: 1; }
-.tool-icon, .card-tool-icon, .history-tool-icon, .selected-tool-icon, .picker-tool-icon, .popup-tool-icon { fill: none; stroke: currentColor; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.tool-icon, .card-tool-icon, .history-tool-icon, .selected-tool-icon, .picker-tool-icon, .popup-tool-icon { display: block; object-fit: contain; }
 .card-tool-icon { width: 42px; height: 42px; flex: 0 0 42px; color: var(--accent-2); background: rgba(24,169,153,.12); border-radius: 9px; padding: .35rem; }
 .offsets { display: grid; grid-template-columns: repeat(3,1fr); gap: .4rem; margin-bottom: .7rem; }
 .offsets span { background: #0c141c; border-radius: 7px; padding: .45rem; color: var(--muted); font-size: .75rem; }
