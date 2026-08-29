@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- Aggiunto un popup rapido nella scheda di ogni utensile montato.
+- Il popup mostra tutti i materiali registrati e i relativi parametri di taglio.
+- Visualizzazione completa di Vc, S, Fz, F, ap, ae, refrigerazione e note.
+
 ## 0.2.0
 
 - Un utensile attivo per ogni posizione e utensili sostituiti conservati nello storico.
