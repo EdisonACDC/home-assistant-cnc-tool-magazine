@@ -7,6 +7,8 @@ const toolForm = document.querySelector("#tool-form");
 const cuttingForm = document.querySelector("#cutting-form");
 const cuttingList = document.querySelector("#cutting-list");
 const historyList = document.querySelector("#history-list");
+const materialsDialog = document.querySelector("#materials-dialog");
+const materialsDialogList = document.querySelector("#materials-dialog-list");
 const fields = ["t_number","d_offset","h_offset","diameter_mm","length_mm","description","tool_type","flutes","notes"];
 const cuttingFields = ["id","material","coolant","vc_m_min","rpm","fz_mm_tooth","feed_mm_min","ap_mm","ae_mm","notes"];
 
@@ -37,7 +39,19 @@ function render() {
   });
   grid.innerHTML = visible.map(toolCard).join("");
   document.querySelector("#empty-state").hidden = visible.length > 0;
-  grid.querySelectorAll(".tool-card").forEach(button => button.addEventListener("click", () => openTool(Number(button.dataset.slot))));
+  grid.querySelectorAll(".tool-card").forEach(card => {
+    card.addEventListener("click", () => openTool(Number(card.dataset.slot)));
+    card.addEventListener("keydown", event => {
+      if ((event.key === "Enter" || event.key === " ") && event.target === card) {
+        event.preventDefault();
+        openTool(Number(card.dataset.slot));
+      }
+    });
+  });
+  grid.querySelectorAll(".show-materials").forEach(button => button.addEventListener("click", event => {
+    event.stopPropagation();
+    openMaterials(Number(button.closest(".tool-card").dataset.slot));
+  }));
 
   const occupied = state.tools.filter(isOccupied).length;
   document.querySelector("#occupied-count").textContent = occupied;
@@ -49,13 +63,45 @@ function toolCard(tool) {
   const occupied = isOccupied(tool);
   const title = tool.description || "Posizione libera";
   const materials = tool.cutting_parameters.slice(0, 3).map(item => `<span class="chip">${esc(item.material)}</span>`).join("");
-  return `<button class="tool-card ${occupied ? "" : "free"}" data-slot="${tool.slot}">
+  const materialsButton = occupied && tool.cutting_parameters.length
+    ? `<button class="mini-button show-materials" type="button">Parametri materiali (${tool.cutting_parameters.length})</button>`
+    : "";
+  return `<article class="tool-card ${occupied ? "" : "free"}" data-slot="${tool.slot}" role="button" tabindex="0">
     <div class="card-head"><span class="slot">${tool.slot}</span><span class="status">${occupied ? "Occupato" : "Libero"}</span></div>
     <h3>${esc(title)}</h3>
     <div class="offsets"><span>T<b>${esc(tool.t_number ?? "—")}</b></span><span>D<b>${esc(tool.d_offset ?? "—")}</b></span><span>H<b>${esc(tool.h_offset ?? "—")}</b></span></div>
     <p class="measure">Ø ${esc(tool.diameter_mm ?? "—")} mm · L ${esc(tool.length_mm ?? "—")} mm${tool.flutes ? ` · Z${esc(tool.flutes)}` : ""}</p>
     <div class="material-chips">${materials}${tool.history.length ? `<span class="chip">${tool.history.length} storico</span>` : ""}</div>
-  </button>`;
+    ${materialsButton}
+  </article>`;
+}
+
+function parameterValue(value, unit = "") {
+  return value === null || value === undefined || value === "" ? "—" : `${esc(value)}${unit}`;
+}
+
+function openMaterials(slot) {
+  const tool = state.tools.find(item => item.slot === slot);
+  if (!tool || !tool.cutting_parameters.length) return;
+  document.querySelector("#materials-dialog-title").textContent = `Parametri – Posto ${slot}`;
+  document.querySelector("#materials-dialog-tool").textContent = tool.description || tool.tool_type || "Utensile montato";
+  materialsDialogList.innerHTML = tool.cutting_parameters.map(item => `
+    <article class="material-detail">
+      <div class="material-detail-head">
+        <h3>${esc(item.material)}</h3>
+        <span class="chip">${esc(item.coolant || "Refrigerazione non indicata")}</span>
+      </div>
+      <div class="parameter-grid">
+        <div><small>Velocità Vc</small><strong>${parameterValue(item.vc_m_min, " m/min")}</strong></div>
+        <div><small>Giri S</small><strong>${parameterValue(item.rpm, " rpm")}</strong></div>
+        <div><small>Avanzamento Fz</small><strong>${parameterValue(item.fz_mm_tooth, " mm/dente")}</strong></div>
+        <div><small>Avanzamento F</small><strong>${parameterValue(item.feed_mm_min, " mm/min")}</strong></div>
+        <div><small>Profondità ap</small><strong>${parameterValue(item.ap_mm, " mm")}</strong></div>
+        <div><small>Larghezza ae</small><strong>${parameterValue(item.ae_mm, " mm")}</strong></div>
+      </div>
+      ${item.notes ? `<p class="material-notes"><strong>Note:</strong> ${esc(item.notes)}</p>` : ""}
+    </article>`).join("");
+  materialsDialog.showModal();
 }
 
 async function loadTools(showMessage = false) {
@@ -227,5 +273,7 @@ document.querySelector("#refresh-button").addEventListener("click", () => loadTo
 document.querySelector("#close-dialog").addEventListener("click", () => dialog.close());
 document.querySelector("#clear-cutting").addEventListener("click", clearCutting);
 dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
+document.querySelector("#close-materials-dialog").addEventListener("click", () => materialsDialog.close());
+materialsDialog.addEventListener("click", event => { if (event.target === materialsDialog) materialsDialog.close(); });
 
 loadTools();
