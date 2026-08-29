@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+
+- Aggiunto un selettore con 16 icone dedicate agli utensili da fresatrice.
+- L'icona appare sugli utensili montati, nello storico e nel popup del materiale.
+- L'icona può essere modificata direttamente anche sugli utensili archiviati.
+- L'icona viene conservata durante archiviazione e rimontaggio.
+
 ## 0.4.0
 
 - Ogni materiale nella scheda dell'utensile apre il proprio popup separato.

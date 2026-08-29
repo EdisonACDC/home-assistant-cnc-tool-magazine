@@ -67,14 +67,27 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual("C45", tool["history"][0]["cutting_parameters"][0]["material"])
 
     def test_activating_history_swaps_current_tool(self):
-        app.update_tool(9, {"description": "Utensile A"})
+        app.update_tool(9, {"description": "Utensile A", "icon": "ball_nose"})
         history_id = app.archive_active_tool(9)
         app.update_tool(9, {"description": "Utensile B"})
         app.activate_history_tool(9, history_id)
         tool = app.list_tools()[8]
         self.assertEqual("Utensile A", tool["description"])
+        self.assertEqual("ball_nose", tool["icon"])
         self.assertEqual(1, len(tool["history"]))
         self.assertEqual("Utensile B", tool["history"][0]["description"])
+
+    def test_history_icon_can_be_changed_without_activating_tool(self):
+        app.update_tool(4, {"description": "Punta", "icon": "drill"})
+        history_id = app.archive_active_tool(4)
+        app.update_history_icon(4, history_id, "center_drill")
+        tool = app.list_tools()[3]
+        self.assertEqual("", tool["description"])
+        self.assertEqual("center_drill", tool["history"][0]["icon"])
+
+    def test_rejects_unknown_tool_icon(self):
+        with self.assertRaises(ValueError):
+            app.update_tool(1, {"icon": "not-an-icon"})
 
 
 if __name__ == "__main__":

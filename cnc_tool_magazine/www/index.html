@@ -63,6 +63,14 @@
         <label><span>Correttore H</span><input name="h_offset" type="number" min="0" step="1"></label>
       </div>
       <label><span>Descrizione utensile</span><input name="description" maxlength="120" placeholder="Es. Fresa MD Ø10 sgrossatura"></label>
+      <input type="hidden" name="icon">
+      <div class="icon-picker-field">
+        <span class="field-label">Icona utensile</span>
+        <button class="icon-picker-button" type="button" id="choose-tool-icon">
+          <span id="selected-tool-icon" class="selected-tool-icon-wrap"><span class="empty-tool-icon">＋</span></span>
+          <span><strong id="selected-tool-icon-label">Nessuna icona</strong><small>Premi per scegliere o cambiare</small></span>
+        </button>
+      </div>
       <div class="form-grid">
         <label><span>Tipo utensile</span><input name="tool_type" maxlength="80" placeholder="Fresa, punta, maschio…"></label>
         <label><span>Numero taglienti Z</span><input name="flutes" type="number" min="1" max="100" step="1"></label>
@@ -106,14 +114,27 @@
   <dialog id="materials-dialog" class="materials-dialog">
     <div class="materials-dialog-content">
       <div class="dialog-head">
-        <div>
+        <div class="material-dialog-brand">
+          <span id="materials-dialog-icon"></span>
+          <div>
           <p class="eyebrow">Materiale selezionato</p>
           <h2 id="materials-dialog-title">Parametri materiali</h2>
           <p class="subtitle" id="materials-dialog-tool"></p>
+          </div>
         </div>
         <button type="button" class="icon-button" id="close-materials-dialog" aria-label="Chiudi">×</button>
       </div>
       <div id="materials-dialog-list" class="materials-dialog-list"></div>
+    </div>
+  </dialog>
+
+  <dialog id="icon-dialog" class="icon-dialog">
+    <div class="icon-dialog-content">
+      <div class="dialog-head">
+        <div><p class="eyebrow">Tipologia utensile</p><h2 id="icon-dialog-title">Scegli icona utensile</h2></div>
+        <button type="button" class="icon-button" id="close-icon-dialog" aria-label="Chiudi">×</button>
+      </div>
+      <div id="icon-grid" class="icon-grid"></div>
     </div>
   </dialog>
 

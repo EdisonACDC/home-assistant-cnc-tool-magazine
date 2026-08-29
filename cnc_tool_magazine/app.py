@@ -19,6 +19,7 @@ from urllib.parse import unquote, urlparse
 APP_DIR = Path(__file__).resolve().parent
 WWW_DIR = APP_DIR / "www"
 TOOL_FIELDS = {
+    "icon",
     "t_number",
     "d_offset",
     "h_offset",
@@ -28,6 +29,25 @@ TOOL_FIELDS = {
     "tool_type",
     "flutes",
     "notes",
+}
+TOOL_ICONS = {
+    "",
+    "end_mill",
+    "roughing_mill",
+    "ball_nose",
+    "face_mill",
+    "slitting_saw",
+    "t_slot",
+    "dovetail",
+    "chamfer",
+    "drill",
+    "center_drill",
+    "tap",
+    "reamer",
+    "boring_bar",
+    "engraving",
+    "probe",
+    "custom",
 }
 CUTTING_FIELDS = {
     "material",
@@ -75,6 +95,7 @@ def init_db(slot_count: int = 30) -> None:
                 length_mm REAL,
                 description TEXT NOT NULL DEFAULT '',
                 tool_type TEXT NOT NULL DEFAULT '',
+                icon TEXT NOT NULL DEFAULT '',
                 flutes INTEGER,
                 notes TEXT NOT NULL DEFAULT '',
                 updated_at TEXT
@@ -105,6 +126,9 @@ def init_db(slot_count: int = 30) -> None:
             );
             """
         )
+        columns = {row[1] for row in db.execute("PRAGMA table_info(tools)")}
+        if "icon" not in columns:
+            db.execute("ALTER TABLE tools ADD COLUMN icon TEXT NOT NULL DEFAULT ''")
         db.executemany(
             "INSERT OR IGNORE INTO tools(slot, t_number, d_offset, h_offset) VALUES (?, ?, ?, ?)",
             ((slot, slot, slot, slot) for slot in range(1, slot_count + 1)),
@@ -160,7 +184,7 @@ def machine_options() -> dict:
 
 def clean_value(field: str, value):
     if value in ("", None):
-        return None if field not in {"description", "tool_type", "notes", "material", "coolant"} else ""
+        return None if field not in {"description", "tool_type", "icon", "notes", "material", "coolant"} else ""
     if field in {"t_number", "d_offset", "h_offset", "flutes", "rpm"}:
         return int(value)
     if field in {"diameter_mm", "length_mm", "vc_m_min", "fz_mm_tooth", "feed_mm_min", "ap_mm", "ae_mm"}:
@@ -170,6 +194,8 @@ def clean_value(field: str, value):
 
 def update_tool(slot: int, payload: dict) -> dict:
     values = {field: clean_value(field, payload[field]) for field in TOOL_FIELDS if field in payload}
+    if "icon" in values and values["icon"] not in TOOL_ICONS:
+        raise ValueError("Icona utensile non valida")
     if not values:
         raise ValueError("Nessun campo utensile valido")
     values["updated_at"] = utc_now()
@@ -189,7 +215,7 @@ def _reset_tool(db: sqlite3.Connection, slot: int) -> None:
     db.execute("DELETE FROM cutting_parameters WHERE slot = ?", (slot,))
     result = db.execute(
             """UPDATE tools SET t_number = ?, d_offset = ?, h_offset = ?,
-               diameter_mm = NULL, length_mm = NULL, description = '', tool_type = '',
+               diameter_mm = NULL, length_mm = NULL, description = '', tool_type = '', icon = '',
                flutes = NULL, notes = '', updated_at = ? WHERE slot = ?""",
             (slot, slot, slot, utc_now(), slot),
         )
@@ -273,6 +299,24 @@ def delete_history_tool(slot: int, history_id: int) -> None:
         result = db.execute("DELETE FROM tool_history WHERE id = ? AND slot = ?", (history_id, slot))
         if result.rowcount != 1:
             raise LookupError("Utensile storico non trovato")
+
+
+def update_history_icon(slot: int, history_id: int, icon: str) -> None:
+    icon = clean_value("icon", icon)
+    if icon not in TOOL_ICONS:
+        raise ValueError("Icona utensile non valida")
+    with connect() as db:
+        row = db.execute(
+            "SELECT tool_json FROM tool_history WHERE id = ? AND slot = ?", (history_id, slot)
+        ).fetchone()
+        if not row:
+            raise LookupError("Utensile storico non trovato")
+        tool = json.loads(row["tool_json"])
+        tool["icon"] = icon
+        db.execute(
+            "UPDATE tool_history SET tool_json = ? WHERE id = ? AND slot = ?",
+            (json.dumps(tool, ensure_ascii=False), history_id, slot),
+        )
 
 
 def upsert_cutting(slot: int, payload: dict) -> dict:
@@ -361,6 +405,7 @@ class Handler(BaseHTTPRequestHandler):
             payload = self.read_json()
             tool_match = re.fullmatch(r"/api/tools/(\d+)", path)
             cutting_match = re.fullmatch(r"/api/tools/(\d+)/cutting", path)
+            history_icon_match = re.fullmatch(r"/api/tools/(\d+)/history/(\d+)/icon", path)
             if tool_match:
                 slot = self.valid_slot(tool_match.group(1))
                 self.send_json(update_tool(slot, payload))
@@ -368,6 +413,11 @@ class Handler(BaseHTTPRequestHandler):
             if cutting_match:
                 slot = self.valid_slot(cutting_match.group(1))
                 self.send_json(upsert_cutting(slot, payload))
+                return
+            if history_icon_match:
+                slot = self.valid_slot(history_icon_match.group(1))
+                update_history_icon(slot, int(history_icon_match.group(2)), payload.get("icon", ""))
+                self.send_json({"ok": True})
                 return
             self.send_error(HTTPStatus.NOT_FOUND)
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
