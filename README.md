@@ -1,30 +1,77 @@
+<p align="center">
+  <img src="cnc_tool_magazine/www/icon.png" alt="CNC Tool Magazine" width="128">
+</p>
+
 # Home Assistant CNC Tool Magazine
 
-Repository Home Assistant per la gestione di un magazzino utensili CNC da 30 posti, pensato per una fresatrice PentaMac con sistema operativo Visel.
+[![Version](https://img.shields.io/badge/version-0.7.0-087f74)](https://github.com/EdisonACDC/home-assistant-cnc-tool-magazine/releases)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-add--on-41BDF5)](https://www.home-assistant.io/)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-## Installazione rapida
+**CNC Tool Magazine** è un add-on gratuito per Home Assistant che gestisce il magazzino utensili di una fresatrice CNC. È stato progettato per un magazzino PentaMac / Visel da 30 posizioni, ma può essere utilizzato come archivio digitale per altre fresatrici con la stessa capacità.
 
-In Home Assistant apri **Impostazioni → App → App store → ⋮ → Repository** e aggiungi:
+**CNC Tool Magazine** is a free Home Assistant add-on for managing a 30-position CNC milling machine tool magazine. It stores tool offsets, dimensions, cutting data by material and the complete history of replaced tools.
+
+## Funzioni principali
+
+- 30 posizioni fisse corrispondenti ai posti fisici del magazzino CNC.
+- Correttori utensile modificabili `T`, `D` e `H`.
+- Descrizione, tipo, diametro, lunghezza, numero di taglienti e note.
+- 16 icone realistiche per frese, punte, maschi, alesatori, bareni e tastatori.
+- Parametri di taglio separati per ogni materiale: Vc, giri/min, fz, avanzamento, ap, ae e refrigerante.
+- Un utensile montato per posizione e storico completo degli utensili sostituiti.
+- Ripristino rapido di un utensile archiviato con tutti i suoi parametri.
+- Popup separato per ogni materiale.
+- Esportazione completa in PDF A4, pronta per stampa e condivisione.
+- Esportazione JSON per il backup dei dati.
+- Database SQLite persistente incluso nei backup di Home Assistant.
+- Interfaccia responsive per iPhone, Android, tablet e computer.
+
+## Installazione in Home Assistant
+
+1. Apri **Impostazioni → App → App store**.
+2. Apri il menu **⋮ → Repository**.
+3. Aggiungi questo indirizzo:
 
 ```text
 https://github.com/EdisonACDC/home-assistant-cnc-tool-magazine
 ```
 
-Poi installa **CNC Tool Magazine** dallo store.
+4. Seleziona **CNC Tool Magazine**.
+5. Premi **Installa**.
+6. Attiva **Avvia all'avvio** e **Mostra nella barra laterale**.
+7. Avvia l'add-on.
 
-## Funzioni della versione 0.1.0
+## Come funziona
 
-- posizione fisica fissa da 1 a 30;
-- valori modificabili T, D e H;
-- descrizione, tipo, taglienti, diametro e lunghezza utensile;
-- parametri Vc, S, Fz, F, ap e ae per ogni materiale;
-- interfaccia Ingress per Home Assistant;
-- salvataggio persistente SQLite ed esportazione JSON.
-- un utensile attivo per posizione e storico illimitato degli utensili sostituiti;
-- riattivazione rapida di un utensile storico con tutti i suoi parametri di taglio.
+Ogni scheda numerata rappresenta la stessa posizione fisica nel magazzino della fresatrice. Aprendo una posizione puoi registrare l'utensile montato e aggiungere più materiali, ognuno con i propri parametri di lavorazione.
 
-> Stato: versione iniziale sperimentale. L'integrazione diretta con il controllo Visel verrà valutata dopo aver verificato il protocollo disponibile sulla macchina.
+Quando sostituisci un utensile, premi **Archivia e inserisci nuovo**. L'utensile precedente rimane nello storico della posizione insieme alle icone, alle misure, alle note e a tutti i parametri di taglio. Con **Monta** puoi ripristinarlo in qualsiasi momento.
+
+## Esportazione PDF e JSON
+
+- **Esporta PDF** crea un rapporto con tutte le 30 posizioni, gli utensili montati, quelli archiviati e le schede di taglio per materiale.
+- **Esporta JSON** crea una copia strutturata dei dati utile come backup.
+
+## Compatibilità
+
+- Home Assistant OS con supporto add-on.
+- Architetture `amd64` e `aarch64`.
+- Interfaccia Home Assistant Ingress.
+- Fresatrice PentaMac con controllo Visel; l'integrazione diretta con il controllo macchina non è ancora inclusa.
+
+## Dati e sicurezza
+
+I dati rimangono sul server Home Assistant nel database `/data/cnc_tools.db`. L'add-on non richiede accesso privilegiato, rete host o accesso alle API di Home Assistant. L'interfaccia è riservata agli amministratori tramite Ingress.
+
+## Parole chiave
+
+Home Assistant CNC tool magazine, CNC tool management, milling machine tool database, magazzino utensili CNC, gestione utensili fresatrice, parametri di taglio CNC, PentaMac Visel, CNC tooling database.
+
+## Versione
+
+Versione corrente: **0.7.0**. Consulta il [changelog](cnc_tool_magazine/CHANGELOG.md) per tutte le modifiche.
 
 ## Licenza
 
-MIT
+Distribuito con licenza [MIT](LICENSE).
