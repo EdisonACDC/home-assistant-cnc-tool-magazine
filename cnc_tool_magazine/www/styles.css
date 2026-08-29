@@ -18,6 +18,8 @@ body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 85% -
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 .topbar { display: flex; justify-content: space-between; gap: 2rem; align-items: flex-end; padding: 2rem clamp(1rem,4vw,4rem) 1.25rem; border-bottom: 1px solid var(--line); background: rgba(11,17,24,.8); backdrop-filter: blur(14px); position: sticky; top: 0; z-index: 5; }
+.app-brand { display: flex; align-items: center; gap: 1rem; }
+.app-icon { width: 72px; height: 72px; border-radius: 18px; object-fit: cover; box-shadow: var(--shadow); }
 h1, h2, h3, p { margin-top: 0; }
 h1 { margin-bottom: .4rem; font-size: clamp(1.6rem,4vw,2.45rem); letter-spacing: -.035em; }
 .subtitle { margin: 0; color: var(--muted); max-width: 780px; }
@@ -52,7 +54,8 @@ textarea { resize: vertical; }
 .measure { color: var(--muted); font-size: .78rem; margin: 0; }
 .material-chips { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .7rem; }
 .chip { color: #c8f8f3; background: rgba(24,169,153,.15); border: 1px solid rgba(54,209,196,.28); padding: .2rem .42rem; border-radius: 99px; font-size: .68rem; }
-.show-materials { width: 100%; margin-top: .75rem; color: var(--accent-2); border-color: rgba(54,209,196,.38); }
+.material-chip { cursor: pointer; font: inherit; }
+.material-chip:hover, .material-chip:focus-visible { background: rgba(24,169,153,.32); border-color: var(--accent-2); outline: none; }
 .empty-state { text-align: center; color: var(--muted); padding: 3rem; }
 dialog { width: min(920px,calc(100% - 1rem)); max-height: calc(100vh - 1rem); padding: 0; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: var(--text); box-shadow: 0 30px 90px #000; }
 dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
@@ -91,6 +94,8 @@ dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
 .toast.error { background: #3d1c1c; border-color: var(--danger); }
 @media (max-width: 700px) {
   .topbar { position: static; display: block; padding-top: 1rem; }
+  .app-brand { align-items: flex-start; }
+  .app-icon { width: 58px; height: 58px; border-radius: 14px; }
   .actions { margin-top: 1rem; }
   .summary { grid-template-columns: 1fr; gap: .55rem; }
   .toolbar, .form-grid, .form-grid.three { grid-template-columns: 1fr; }

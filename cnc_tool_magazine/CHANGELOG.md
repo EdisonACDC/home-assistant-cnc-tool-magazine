@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+
+- Ogni materiale nella scheda dell'utensile apre il proprio popup separato.
+- Aggiunta un'icona dedicata a CNC Tool Magazine nell'add-on e nell'app.
+
 ## 0.3.0
 
 - Aggiunto un popup rapido nella scheda di ogni utensile montato.

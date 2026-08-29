@@ -48,9 +48,9 @@ function render() {
       }
     });
   });
-  grid.querySelectorAll(".show-materials").forEach(button => button.addEventListener("click", event => {
+  grid.querySelectorAll(".show-material").forEach(button => button.addEventListener("click", event => {
     event.stopPropagation();
-    openMaterials(Number(button.closest(".tool-card").dataset.slot));
+    openMaterial(Number(button.closest(".tool-card").dataset.slot), Number(button.dataset.id));
   }));
 
   const occupied = state.tools.filter(isOccupied).length;
@@ -62,17 +62,13 @@ function render() {
 function toolCard(tool) {
   const occupied = isOccupied(tool);
   const title = tool.description || "Posizione libera";
-  const materials = tool.cutting_parameters.slice(0, 3).map(item => `<span class="chip">${esc(item.material)}</span>`).join("");
-  const materialsButton = occupied && tool.cutting_parameters.length
-    ? `<button class="mini-button show-materials" type="button">Parametri materiali (${tool.cutting_parameters.length})</button>`
-    : "";
+  const materials = tool.cutting_parameters.map(item => `<button class="chip material-chip show-material" data-id="${item.id}" type="button" aria-label="Apri parametri per ${esc(item.material)}">${esc(item.material)}</button>`).join("");
   return `<article class="tool-card ${occupied ? "" : "free"}" data-slot="${tool.slot}" role="button" tabindex="0">
     <div class="card-head"><span class="slot">${tool.slot}</span><span class="status">${occupied ? "Occupato" : "Libero"}</span></div>
     <h3>${esc(title)}</h3>
     <div class="offsets"><span>T<b>${esc(tool.t_number ?? "—")}</b></span><span>D<b>${esc(tool.d_offset ?? "—")}</b></span><span>H<b>${esc(tool.h_offset ?? "—")}</b></span></div>
     <p class="measure">Ø ${esc(tool.diameter_mm ?? "—")} mm · L ${esc(tool.length_mm ?? "—")} mm${tool.flutes ? ` · Z${esc(tool.flutes)}` : ""}</p>
     <div class="material-chips">${materials}${tool.history.length ? `<span class="chip">${tool.history.length} storico</span>` : ""}</div>
-    ${materialsButton}
   </article>`;
 }
 
@@ -80,15 +76,16 @@ function parameterValue(value, unit = "") {
   return value === null || value === undefined || value === "" ? "—" : `${esc(value)}${unit}`;
 }
 
-function openMaterials(slot) {
+function openMaterial(slot, materialId) {
   const tool = state.tools.find(item => item.slot === slot);
-  if (!tool || !tool.cutting_parameters.length) return;
-  document.querySelector("#materials-dialog-title").textContent = `Parametri – Posto ${slot}`;
-  document.querySelector("#materials-dialog-tool").textContent = tool.description || tool.tool_type || "Utensile montato";
-  materialsDialogList.innerHTML = tool.cutting_parameters.map(item => `
+  const item = tool?.cutting_parameters.find(value => value.id === materialId);
+  if (!tool || !item) return;
+  document.querySelector("#materials-dialog-title").textContent = item.material;
+  document.querySelector("#materials-dialog-tool").textContent = `Posto ${slot} · ${tool.description || tool.tool_type || "Utensile montato"}`;
+  materialsDialogList.innerHTML = `
     <article class="material-detail">
       <div class="material-detail-head">
-        <h3>${esc(item.material)}</h3>
+        <h3>Parametri di taglio</h3>
         <span class="chip">${esc(item.coolant || "Refrigerazione non indicata")}</span>
       </div>
       <div class="parameter-grid">
@@ -100,7 +97,7 @@ function openMaterials(slot) {
         <div><small>Larghezza ae</small><strong>${parameterValue(item.ae_mm, " mm")}</strong></div>
       </div>
       ${item.notes ? `<p class="material-notes"><strong>Note:</strong> ${esc(item.notes)}</p>` : ""}
-    </article>`).join("");
+    </article>`;
   materialsDialog.showModal();
 }
 
