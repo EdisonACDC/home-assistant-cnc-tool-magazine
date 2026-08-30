@@ -11,7 +11,9 @@ const materialsDialog = document.querySelector("#materials-dialog");
 const materialsDialogList = document.querySelector("#materials-dialog-list");
 const iconDialog = document.querySelector("#icon-dialog");
 const iconGrid = document.querySelector("#icon-grid");
-const fields = ["t_number","d_offset","h_offset","diameter_mm","length_mm","description","tool_type","icon","flutes","notes"];
+const labelsDialog = document.querySelector("#labels-dialog");
+const labelSheet = document.querySelector("#label-sheet");
+const fields = ["t_number","d_offset","h_offset","diameter_mm","length_mm","description","tool_type","icon","flutes","status","usage_hours","life_hours","notes"];
 const cuttingFields = ["id","material","coolant","vc_m_min","rpm","fz_mm_tooth","feed_mm_min","ap_mm","ae_mm","notes"];
 const TOOL_ICONS = [
   {id:"end_mill", label:"Fresa cilindrica"},
@@ -31,6 +33,7 @@ const TOOL_ICONS = [
   {id:"probe", label:"Tastatore"},
   {id:"custom", label:"Utensile personalizzato"}
 ];
+const STATUS_LABELS = {new:"Nuovo", in_use:"In uso", to_sharpen:"Da affilare", maintenance:"In manutenzione", worn:"Fuori servizio"};
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[char]);
@@ -57,7 +60,7 @@ async function request(url, options = {}) {
 }
 
 function isOccupied(tool) {
-  return Boolean(tool.description || tool.tool_type || tool.icon || tool.diameter_mm || tool.length_mm || tool.flutes || tool.notes || tool.cutting_parameters.length);
+  return Boolean(tool.description || tool.tool_type || tool.icon || tool.diameter_mm || tool.length_mm || tool.flutes || tool.notes || tool.cutting_parameters?.length);
 }
 
 function render() {
@@ -96,13 +99,21 @@ function toolCard(tool) {
   const occupied = isOccupied(tool);
   const title = tool.description || "Posizione libera";
   const materials = tool.cutting_parameters.map(item => `<button class="chip material-chip show-material" data-id="${item.id}" type="button" aria-label="Apri parametri per ${esc(item.material)}">${esc(item.material)}</button>`).join("");
+  const status = occupied ? (STATUS_LABELS[tool.status] || "In uso") : "Libero";
+  const life = occupied && tool.remaining_percent !== null ? `<span class="life-meter"><i style="width:${tool.remaining_percent}%"></i></span><small>${tool.remaining_percent}% vita residua · ${formatHours(tool.usage_hours_current)}</small>` : "";
   return `<article class="tool-card ${occupied ? "" : "free"}" data-slot="${tool.slot}" role="button" tabindex="0">
-    <div class="card-head"><span class="slot">${tool.slot}</span><span class="status">${occupied ? "Occupato" : "Libero"}</span></div>
+    <div class="card-head"><span class="slot">${tool.slot}</span><span class="status status-${esc(tool.status)}">${esc(status)}</span></div>
     <div class="tool-title">${toolIcon(tool.icon, "card-tool-icon")}<h3>${esc(title)}</h3></div>
     <div class="offsets"><span>T<b>${esc(tool.t_number ?? "—")}</b></span><span>D<b>${esc(tool.d_offset ?? "—")}</b></span><span>H<b>${esc(tool.h_offset ?? "—")}</b></span></div>
     <p class="measure">Ø ${esc(tool.diameter_mm ?? "—")} mm · L ${esc(tool.length_mm ?? "—")} mm${tool.flutes ? ` · Z${esc(tool.flutes)}` : ""}</p>
+    <div class="card-life">${life}</div>
     <div class="material-chips">${materials}${tool.history.length ? `<span class="chip">${tool.history.length} storico</span>` : ""}</div>
   </article>`;
+}
+
+function formatHours(value) {
+  const hours = Number(value || 0);
+  return `${hours.toLocaleString("it-IT", {minimumFractionDigits:1, maximumFractionDigits:2})} ore`;
 }
 
 function parameterValue(value, unit = "") {
@@ -141,11 +152,18 @@ async function loadTools(showMessage = false) {
     state.tools = data.tools;
     document.querySelector("#machine-name").textContent = data.machine.machine_name;
     render();
+    if (!state.deepLinkOpened) {
+      state.deepLinkOpened = true;
+      const url = new URL(window.location.href);
+      const slot = Number(url.searchParams.get("slot"));
+      const historyId = Number(url.searchParams.get("history")) || null;
+      if (Number.isInteger(slot) && slot >= 1 && slot <= 30) openTool(slot, historyId);
+    }
     if (showMessage) toast("Dati aggiornati");
   } catch (error) { toast(error.message, true); }
 }
 
-function openTool(slot) {
+function openTool(slot, historyId = null) {
   state.activeSlot = slot;
   const tool = state.tools.find(item => item.slot === slot);
   document.querySelector("#slot").value = slot;
@@ -155,13 +173,40 @@ function openTool(slot) {
   clearCutting();
   renderCutting(tool);
   renderHistory(tool);
+  renderUsage(tool);
   dialog.showModal();
+  if (historyId) {
+    const archived = historyList.querySelector(`[data-id="${historyId}"]`);
+    if (archived) {
+      archived.classList.add("highlighted");
+      setTimeout(() => archived.scrollIntoView({behavior:"smooth", block:"center"}), 100);
+    }
+  }
+}
+
+function currentUsage(tool) {
+  let usage = Number(tool.usage_hours || 0);
+  if (tool.timer_started_at) {
+    usage += Math.max(0, (Date.now() - new Date(tool.timer_started_at).getTime()) / 3600000);
+  }
+  return usage;
+}
+
+function renderUsage(tool) {
+  const usage = currentUsage(tool);
+  const life = Number(tool.life_hours || 0);
+  document.querySelector("#usage-summary").textContent = `${formatHours(usage)}${tool.timer_started_at ? " · conteggio attivo" : ""}`;
+  document.querySelector("#life-summary").textContent = life > 0
+    ? `${Math.max(0, Math.round((1 - usage / life) * 100))}% di vita residua su ${formatHours(life)}`
+    : "Vita prevista non impostata";
+  document.querySelector("#start-usage").disabled = Boolean(tool.timer_started_at);
+  document.querySelector("#stop-usage").disabled = !tool.timer_started_at;
 }
 
 function renderHistory(tool) {
   historyList.innerHTML = tool.history.length ? tool.history.map(item => `
     <article class="history-row" data-id="${item.history_id}">
-      <div class="history-identity">${toolIcon(item.icon, "history-tool-icon")}<div><strong>${esc(item.description || item.tool_type || "Utensile senza descrizione")}</strong><small>Archiviato ${esc(new Date(item.archived_at).toLocaleString("it-IT"))}</small></div></div>
+      <div class="history-identity">${toolIcon(item.icon, "history-tool-icon")}<div><strong>${esc(item.description || item.tool_type || "Utensile senza descrizione")}</strong><small>Archiviato ${esc(new Date(item.archived_at).toLocaleString("it-IT"))} · ${esc(STATUS_LABELS[item.status] || "In uso")} · ${formatHours(item.usage_hours)}</small></div></div>
       <div><small>T</small>${esc(item.t_number ?? "—")}</div>
       <div><small>D</small>${esc(item.d_offset ?? "—")}</div>
       <div><small>H</small>${esc(item.h_offset ?? "—")}</div>
@@ -275,7 +320,26 @@ function openRefresh() {
   renderSelectedIcon(tool.icon);
   renderCutting(tool);
   renderHistory(tool);
+  renderUsage(tool);
 }
+
+document.querySelector("#start-usage").addEventListener("click", async () => {
+  try {
+    await request(`api/tools/${state.activeSlot}/usage/start`, {method:"POST"});
+    await loadTools();
+    openRefresh();
+    toast("Conteggio utilizzo avviato");
+  } catch (error) { toast(error.message, true); }
+});
+
+document.querySelector("#stop-usage").addEventListener("click", async () => {
+  try {
+    await request(`api/tools/${state.activeSlot}/usage/stop`, {method:"POST"});
+    await loadTools();
+    openRefresh();
+    toast("Conteggio fermato e ore salvate");
+  } catch (error) { toast(error.message, true); }
+});
 
 document.querySelector("#archive-tool").addEventListener("click", async () => {
   if (!confirm(`Archiviare l'utensile attivo del posto ${state.activeSlot} e liberare la posizione per uno nuovo?`)) return;
@@ -408,6 +472,53 @@ importFile.addEventListener("change", async () => {
   } catch (error) { toast(`Importazione non riuscita: ${error.message}`, true); }
 });
 
+function toolDeepLink(slot, historyId = null) {
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set("slot", slot);
+  if (historyId) url.searchParams.set("history", historyId);
+  return url.href;
+}
+
+function qrSource(slot, historyId = null) {
+  return `api/tools/${slot}/qr.svg?target=${encodeURIComponent(toolDeepLink(slot, historyId))}`;
+}
+
+function labelEntries(includeFree = false, singleSlot = null) {
+  const entries = [];
+  state.tools.forEach(tool => {
+    if ((!singleSlot || tool.slot === singleSlot) && (includeFree || isOccupied(tool))) entries.push({...tool, label_slot:tool.slot, label_history:null});
+    if (!singleSlot) tool.history.forEach(item => entries.push({...item, label_slot:tool.slot, label_history:item.history_id}));
+  });
+  return entries;
+}
+
+function renderLabels(tools) {
+  labelSheet.innerHTML = tools.map(tool => `
+    <article class="tool-label">
+      <img src="${qrSource(tool.label_slot, tool.label_history)}" alt="QR utensile posizione ${tool.label_slot}">
+      <div class="label-info"><strong>POSTO ${tool.label_slot}${tool.label_history ? " · ARCHIVIO" : ""}</strong><h3>${esc(tool.description || tool.tool_type || "Posizione libera")}</h3><p>T${esc(tool.t_number ?? "—")} · D${esc(tool.d_offset ?? "—")} · H${esc(tool.h_offset ?? "—")}</p><span>${esc(isOccupied({...tool, cutting_parameters:tool.cutting_parameters || []}) ? (STATUS_LABELS[tool.status] || "In uso") : "Libero")}</span></div>
+    </article>`).join("");
+}
+
+function openLabels(singleSlot = null) {
+  const tools = labelEntries(false, singleSlot);
+  renderLabels(tools.length ? tools : labelEntries(true, singleSlot));
+  document.querySelector("#show-all-labels").hidden = Boolean(singleSlot);
+  labelsDialog.showModal();
+}
+
+document.querySelector("#labels-button").addEventListener("click", () => openLabels());
+document.querySelector("#tool-qr").addEventListener("click", () => openLabels(state.activeSlot));
+document.querySelector("#show-all-labels").addEventListener("click", () => {
+  renderLabels(labelEntries(true));
+  document.querySelector("#show-all-labels").hidden = true;
+});
+document.querySelector("#print-labels").addEventListener("click", () => window.print());
+document.querySelector("#close-labels-dialog").addEventListener("click", () => labelsDialog.close());
+labelsDialog.addEventListener("click", event => { if (event.target === labelsDialog) labelsDialog.close(); });
+
 document.querySelector("#export-button").addEventListener("click", async () => {
   try {
     const data = await request("api/export");
@@ -453,5 +564,12 @@ document.querySelector("#close-materials-dialog").addEventListener("click", () =
 materialsDialog.addEventListener("click", event => { if (event.target === materialsDialog) materialsDialog.close(); });
 document.querySelector("#close-icon-dialog").addEventListener("click", () => iconDialog.close());
 iconDialog.addEventListener("click", event => { if (event.target === iconDialog) iconDialog.close(); });
+
+setInterval(() => {
+  if (dialog.open && state.activeSlot) {
+    const tool = state.tools.find(item => item.slot === state.activeSlot);
+    if (tool?.timer_started_at) renderUsage(tool);
+  }
+}, 1000);
 
 loadTools();
