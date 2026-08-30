@@ -1,6 +1,6 @@
 "use strict";
 
-const state = { tools: [], inventory: [], templates: [], events: [], activeSlot: null, iconTarget: null };
+const state = { tools: [], inventory: [], templates: [], events: [], validation: {count:0,warnings:[],slots:[]}, visel: null, activeSlot: null, iconTarget: null };
 const grid = document.querySelector("#tool-grid");
 const dialog = document.querySelector("#tool-dialog");
 const toolForm = document.querySelector("#tool-form");
@@ -21,6 +21,10 @@ const templateForm = document.querySelector("#template-form");
 const templateList = document.querySelector("#template-list");
 const eventsDialog = document.querySelector("#events-dialog");
 const eventsList = document.querySelector("#events-list");
+const validationDialog = document.querySelector("#validation-dialog");
+const validationList = document.querySelector("#validation-list");
+const viselDialog = document.querySelector("#visel-dialog");
+const viselForm = document.querySelector("#visel-form");
 const inventoryFields = ["description","tool_type","icon","diameter_mm","length_mm","flutes","notes"];
 const templateFields = ["name","vc_m_min","fz_mm_tooth","ap_mm","ae_mm","coolant","notes"];
 const fields = ["t_number","d_offset","h_offset","diameter_mm","length_mm","description","tool_type","icon","flutes","status","usage_hours","life_hours","notes"];
@@ -107,12 +111,14 @@ function render() {
 
 function toolCard(tool) {
   const occupied = isOccupied(tool);
+  const issues = state.validation.warnings.filter(item => item.slots.includes(tool.slot));
   const title = tool.description || "Posizione libera";
   const materials = tool.cutting_parameters.map(item => `<button class="chip material-chip show-material" data-id="${item.id}" type="button" aria-label="Apri parametri per ${esc(item.material)}">${esc(item.material)}</button>`).join("");
   const status = occupied ? (STATUS_LABELS[tool.status] || "In uso") : "Libero";
   const life = occupied && tool.remaining_percent !== null ? `<span class="life-meter"><i style="width:${tool.remaining_percent}%"></i></span><small>${tool.remaining_percent}% vita residua · ${formatHours(tool.usage_hours_current)}</small>` : "";
-  return `<article class="tool-card ${occupied ? "" : "free"}" data-slot="${tool.slot}" role="button" tabindex="0">
+  return `<article class="tool-card ${occupied ? "" : "free"} ${issues.length ? "warning" : ""}" data-slot="${tool.slot}" role="button" tabindex="0">
     <div class="card-head"><span class="slot">${tool.slot}</span><span class="status status-${esc(tool.status)}">${esc(status)}</span></div>
+    ${issues.length ? `<div class="warning-chip" title="${esc(issues.map(item => item.message).join(" · "))}">⚠ ${issues.length} ${issues.length === 1 ? "segnalazione" : "segnalazioni"}</div>` : ""}
     <div class="tool-title">${toolIcon(tool.icon, "card-tool-icon")}<h3>${esc(title)}</h3></div>
     <div class="offsets"><span>T<b>${esc(tool.t_number ?? "—")}</b></span><span>D<b>${esc(tool.d_offset ?? "—")}</b></span><span>H<b>${esc(tool.h_offset ?? "—")}</b></span></div>
     <p class="measure">Ø ${esc(tool.diameter_mm ?? "—")} mm · L ${esc(tool.length_mm ?? "—")} mm${tool.flutes ? ` · Z${esc(tool.flutes)}` : ""}</p>
@@ -158,15 +164,18 @@ function openMaterial(slot, materialId) {
 
 async function loadTools(showMessage = false) {
   try {
-    const [data, templateData, inventoryData] = await Promise.all([
-      request("api/tools"), request("api/material-templates"), request("api/inventory")
+    const [data, templateData, inventoryData, validationData] = await Promise.all([
+      request("api/tools"), request("api/material-templates"), request("api/inventory"), request("api/validation")
     ]);
     state.tools = data.tools;
     state.templates = templateData.templates;
     state.inventory = inventoryData.inventory;
+    state.validation = validationData;
     document.querySelector("#machine-name").textContent = data.machine.machine_name;
     renderTemplateSelect();
     document.querySelector("#inventory-count").textContent = state.inventory.length;
+    document.querySelector("#validation-count").textContent = state.validation.count;
+    document.querySelector("#validation-badge").textContent = state.validation.count;
     render();
     if (!state.deepLinkOpened) {
       state.deepLinkOpened = true;
@@ -783,6 +792,37 @@ document.querySelector("#events-button").addEventListener("click", async () => {
   } catch (error) { toast(error.message, true); }
 });
 document.querySelector("#close-events-dialog").addEventListener("click", () => eventsDialog.close());
+
+function renderValidation() {
+  validationList.innerHTML = state.validation.warnings.length ? state.validation.warnings.map(item => `
+    <button class="validation-row" type="button" data-slot="${item.slots[0]}">
+      <span class="validation-icon">⚠</span><span><strong>${esc(item.message)}</strong><small>Apri la posizione ${item.slots[0]} per correggere il dato</small></span>
+    </button>`).join("") : `<div class="validation-ok"><strong>✓ Nessuna segnalazione</strong><p>I numeri T, i correttori D/H e i diametri risultano coerenti.</p></div>`;
+  validationList.querySelectorAll(".validation-row").forEach(button => button.addEventListener("click", () => {
+    validationDialog.close();
+    openTool(Number(button.dataset.slot));
+  }));
+}
+
+document.querySelector("#validation-button").addEventListener("click", () => { renderValidation(); validationDialog.showModal(); });
+document.querySelector("#close-validation-dialog").addEventListener("click", () => validationDialog.close());
+
+document.querySelector("#visel-button").addEventListener("click", async () => {
+  try {
+    state.visel = await request("api/visel");
+    ["controller_model","software_version","host","connection_type","notes"].forEach(field => { viselForm.elements[field].value = state.visel[field] ?? ""; });
+    viselDialog.showModal();
+  } catch (error) { toast(error.message, true); }
+});
+viselForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const payload = Object.fromEntries(new FormData(viselForm).entries());
+  try {
+    state.visel = await request("api/visel", {method:"PUT", body:JSON.stringify(payload)});
+    toast("Preparazione Visel salvata · nessun comando inviato");
+  } catch (error) { toast(error.message, true); }
+});
+document.querySelector("#close-visel-dialog").addEventListener("click", () => viselDialog.close());
 
 document.querySelector("#export-button").addEventListener("click", async () => {
   try {

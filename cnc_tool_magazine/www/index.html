@@ -24,6 +24,8 @@
       <button class="button secondary" id="inventory-button">Officina</button>
       <button class="button secondary" id="materials-library-button">Libreria materiali</button>
       <button class="button secondary" id="events-button">Movimenti</button>
+      <button class="button secondary" id="validation-button">Controlli <span id="validation-badge">0</span></button>
+      <button class="button secondary" id="visel-button">Visel</button>
       <button class="button secondary" id="export-button">Esporta JSON</button>
       <button class="button secondary" id="export-pdf-button">Esporta PDF</button>
       <button class="button" id="refresh-button">Aggiorna</button>
@@ -36,6 +38,7 @@
       <article><strong id="free-count">30</strong><span>posti liberi</span></article>
       <article><strong id="material-count">0</strong><span>parametri materiali</span></article>
       <article><strong id="inventory-count">0</strong><span>utensili in Officina</span></article>
+      <article><strong id="validation-count">0</strong><span>segnalazioni da controllare</span></article>
     </section>
 
     <section class="toolbar">
@@ -219,6 +222,30 @@
     <div class="management-content">
       <div class="dialog-head"><div><p class="eyebrow">Tracciabilità</p><h2>Registro dei movimenti</h2></div><button type="button" class="icon-button" id="close-events-dialog">×</button></div>
       <div id="events-list" class="events-list"></div>
+    </div>
+  </dialog>
+
+  <dialog id="validation-dialog" class="management-dialog">
+    <div class="management-content">
+      <div class="dialog-head"><div><p class="eyebrow">Controllo dati</p><h2>Segnalazioni utensili</h2><p class="subtitle">I controlli non bloccano il lavoro: aiutano a trovare numeri duplicati e dati mancanti.</p></div><button type="button" class="icon-button" id="close-validation-dialog">×</button></div>
+      <div id="validation-list" class="validation-list"></div>
+    </div>
+  </dialog>
+
+  <dialog id="visel-dialog" class="management-dialog">
+    <div class="management-content">
+      <div class="dialog-head"><div><p class="eyebrow">Integrazione futura</p><h2>Configurazione Visel</h2></div><button type="button" class="icon-button" id="close-visel-dialog">×</button></div>
+      <div class="safe-notice"><strong>Modalità sicura</strong><p>Questa sezione prepara l'integrazione ma non invia alcun comando alla macchina. Per completarla servirà il protocollo Visel o un file di esportazione di esempio.</p></div>
+      <form id="visel-form" class="compact-form">
+        <div class="form-grid">
+          <label><span>Modello controllo</span><input name="controller_model" placeholder="PentaMac"></label>
+          <label><span>Versione software</span><input name="software_version" placeholder="Se conosciuta"></label>
+          <label><span>Indirizzo macchina / host</span><input name="host" placeholder="Da lasciare vuoto se sconosciuto"></label>
+          <label><span>Collegamento previsto</span><select name="connection_type"><option value="not_configured">Da definire</option><option value="file_export">Esportazione tramite file</option><option value="network_unknown">Rete da verificare</option></select></label>
+        </div>
+        <label><span>Note tecniche</span><textarea name="notes" rows="3" placeholder="Formato file, porta, versione controllo…"></textarea></label>
+        <div class="form-actions"><button class="button" type="submit">Salva preparazione Visel</button></div>
+      </form>
     </div>
   </dialog>
 

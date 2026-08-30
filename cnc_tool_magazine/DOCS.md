@@ -57,3 +57,11 @@ I dati vengono salvati in `/data/cnc_tools.db` e sono inclusi nei backup dell'ap
 ## Sicurezza
 
 L'interfaccia usa Ingress ed è disponibile soltanto agli amministratori di Home Assistant. L'app non richiede accesso privilegiato, alla rete host o alle API di Home Assistant.
+
+## Controlli automatici
+
+Apri **Controlli** per trovare numeri T duplicati, correttori D o H duplicati e utensili montati senza diametro. I posti liberi vengono ignorati. Toccando una segnalazione si apre direttamente la posizione da correggere.
+
+## Preparazione integrazione Visel
+
+La pagina **Visel** permette di annotare modello del controllo, versione software, host e metodo di collegamento previsto. È una predisposizione in modalità sicura: non apre connessioni e non invia comandi. Per sviluppare lo scambio effettivo serve la documentazione del protocollo Visel oppure un file reale esportato dal controllo, privo di dati sensibili.

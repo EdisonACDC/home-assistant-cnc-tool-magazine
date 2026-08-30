@@ -426,6 +426,16 @@ def init_db(slot_count: int = 30) -> None:
                 size INTEGER NOT NULL,
                 created_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS visel_settings (
+                id INTEGER PRIMARY KEY CHECK(id = 1),
+                controller_model TEXT NOT NULL DEFAULT 'PentaMac',
+                software_version TEXT NOT NULL DEFAULT '',
+                host TEXT NOT NULL DEFAULT '',
+                connection_type TEXT NOT NULL DEFAULT 'not_configured',
+                notes TEXT NOT NULL DEFAULT '',
+                updated_at TEXT NOT NULL
+            );
             """
         )
         columns = {row[1] for row in db.execute("PRAGMA table_info(tools)")}
@@ -464,6 +474,12 @@ def init_db(slot_count: int = 30) -> None:
                (name, vc_m_min, fz_mm_tooth, ap_mm, ae_mm, coolant, notes, updated_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             [(*item, utc_now()) for item in starter_templates],
+        )
+        db.execute(
+            """INSERT OR IGNORE INTO visel_settings
+               (id, controller_model, software_version, host, connection_type, notes, updated_at)
+               VALUES (1, 'PentaMac', '', '', 'not_configured', '', ?)""",
+            (utc_now(),),
         )
 
 
@@ -524,6 +540,47 @@ def list_tools() -> list[dict]:
         )
         by_tool_slot[item["slot"]]["history"].append(archived_tool)
     return tools
+
+
+def validation_report(tools: list[dict] | None = None) -> dict:
+    """Return non-blocking consistency warnings for mounted tools."""
+    mounted = [tool for tool in (tools or list_tools()) if _tool_is_occupied(tool)]
+    warnings: list[dict] = []
+    duplicate_fields = (
+        ("t_number", "duplicate_t", "Numero T"),
+        ("d_offset", "duplicate_d", "Correttore D"),
+        ("h_offset", "duplicate_h", "Correttore H"),
+    )
+    for field, warning_type, label in duplicate_fields:
+        grouped: dict[object, list[int]] = {}
+        for tool in mounted:
+            value = tool.get(field)
+            if value not in (None, ""):
+                grouped.setdefault(value, []).append(int(tool["slot"]))
+        for value, slots in grouped.items():
+            if len(slots) > 1:
+                warnings.append({
+                    "type": warning_type,
+                    "severity": "warning",
+                    "field": field,
+                    "value": value,
+                    "slots": slots,
+                    "message": f"{label} {value} duplicato nelle posizioni {', '.join(map(str, slots))}",
+                })
+    for tool in mounted:
+        diameter = tool.get("diameter_mm")
+        if diameter in (None, "") or float(diameter) <= 0:
+            slot = int(tool["slot"])
+            warnings.append({
+                "type": "missing_diameter",
+                "severity": "warning",
+                "field": "diameter_mm",
+                "value": None,
+                "slots": [slot],
+                "message": f"Diametro mancante nella posizione {slot}",
+            })
+    affected = sorted({slot for warning in warnings for slot in warning["slots"]})
+    return {"count": len(warnings), "warnings": warnings, "slots": affected}
 
 
 def list_inventory() -> list[dict]:
@@ -1263,6 +1320,44 @@ def delete_material_template(template_id: int) -> None:
             raise LookupError("Modello materiale non trovato")
 
 
+def get_visel_settings() -> dict:
+    with connect() as db:
+        row = db.execute("SELECT * FROM visel_settings WHERE id = 1").fetchone()
+    settings = row_to_dict(row) if row else {
+        "id": 1, "controller_model": "PentaMac", "software_version": "", "host": "",
+        "connection_type": "not_configured", "notes": "", "updated_at": utc_now(),
+    }
+    settings.update({
+        "connected": False,
+        "safe_mode": True,
+        "state": "waiting_protocol" if settings["connection_type"] == "not_configured" else "configuration_saved",
+        "message": "Configurazione preparatoria: nessun comando viene inviato alla macchina.",
+    })
+    return settings
+
+
+def save_visel_settings(payload: dict) -> dict:
+    allowed_types = {"not_configured", "file_export", "network_unknown"}
+    connection_type = str(payload.get("connection_type") or "not_configured").strip()
+    if connection_type not in allowed_types:
+        raise ValueError("Tipo di collegamento Visel non valido")
+    values = {
+        "controller_model": str(payload.get("controller_model") or "PentaMac").strip()[:120],
+        "software_version": str(payload.get("software_version") or "").strip()[:120],
+        "host": str(payload.get("host") or "").strip()[:255],
+        "connection_type": connection_type,
+        "notes": str(payload.get("notes") or "").strip()[:2000],
+        "updated_at": utc_now(),
+    }
+    with connect() as db:
+        db.execute(
+            """UPDATE visel_settings SET controller_model = ?, software_version = ?, host = ?,
+               connection_type = ?, notes = ?, updated_at = ? WHERE id = 1""",
+            tuple(values.values()),
+        )
+    return get_visel_settings()
+
+
 def attachments_dir() -> Path:
     target = data_dir() / "attachments"
     target.mkdir(parents=True, exist_ok=True)
@@ -1407,6 +1502,12 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/material-templates":
             self.send_json({"templates": list_material_templates()})
             return
+        if path == "/api/validation":
+            self.send_json(validation_report())
+            return
+        if path == "/api/visel":
+            self.send_json(get_visel_settings())
+            return
         if path == "/api/export":
             self.send_json(export_data())
             return
@@ -1474,6 +1575,9 @@ class Handler(BaseHTTPRequestHandler):
             cutting_match = re.fullmatch(r"/api/tools/(\d+)/cutting", path)
             history_icon_match = re.fullmatch(r"/api/tools/(\d+)/history/(\d+)/icon", path)
             template_match = re.fullmatch(r"/api/material-templates/(\d+)", path)
+            if path == "/api/visel":
+                self.send_json(save_visel_settings(payload))
+                return
             if tool_match:
                 slot = self.valid_slot(tool_match.group(1))
                 self.send_json(update_tool(slot, payload))

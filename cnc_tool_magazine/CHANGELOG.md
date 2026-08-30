@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0
+
+- Controlli automatici per numeri T duplicati, correttori D/H duplicati e diametri mancanti.
+- Evidenziazione delle posizioni coinvolte e apertura diretta della scheda dall'elenco delle segnalazioni.
+- Nuova sezione preparatoria Visel per salvare modello, versione, host, collegamento previsto e note tecniche.
+- Integrazione Visel mantenuta in modalità sicura: nessun comando viene inviato alla macchina senza un protocollo verificato.
+
 ## 1.0.0
 
 - Nuovo magazzino **Officina** per utensili disponibili ma non montati nei 30 posti.

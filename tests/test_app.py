@@ -252,6 +252,30 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(30, len(tools))
         self.assertEqual(1, len(tools[6]["history"]))
 
+    def test_validation_reports_duplicate_numbers_and_missing_diameter(self):
+        app.update_tool(2, {"description": "Fresa A", "diameter_mm": 10, "t_number": 7, "d_offset": 8, "h_offset": 9})
+        app.update_tool(5, {"description": "Fresa B", "t_number": 7, "d_offset": 8, "h_offset": 9})
+        report = app.validation_report()
+        self.assertEqual({"duplicate_t", "duplicate_d", "duplicate_h", "missing_diameter"}, {item["type"] for item in report["warnings"]})
+        self.assertEqual([2, 5], report["slots"])
+
+    def test_validation_ignores_default_numbers_in_empty_slots(self):
+        app.update_tool(4, {"description": "Fresa", "diameter_mm": 6})
+        report = app.validation_report()
+        self.assertEqual(0, report["count"])
+        self.assertEqual([], report["slots"])
+
+    def test_visel_settings_are_persistent_and_safe(self):
+        saved = app.save_visel_settings({
+            "controller_model": "PentaMac 30", "software_version": "4.2",
+            "host": "192.168.1.50", "connection_type": "network_unknown", "notes": "Porta da verificare",
+        })
+        self.assertEqual("PentaMac 30", saved["controller_model"])
+        self.assertEqual("configuration_saved", saved["state"])
+        self.assertFalse(saved["connected"])
+        self.assertTrue(saved["safe_mode"])
+        self.assertEqual("192.168.1.50", app.get_visel_settings()["host"])
+
 
 if __name__ == "__main__":
     unittest.main()
