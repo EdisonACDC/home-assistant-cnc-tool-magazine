@@ -18,6 +18,8 @@
       </div>
     </div>
     <div class="actions">
+      <input id="import-file" type="file" accept="application/json,.json" hidden>
+      <button class="button secondary" id="import-button">Importa JSON</button>
       <button class="button secondary" id="export-button">Esporta JSON</button>
       <button class="button secondary" id="export-pdf-button">Esporta PDF</button>
       <button class="button" id="refresh-button">Aggiorna</button>
@@ -82,6 +84,7 @@
       <div class="form-actions">
         <button class="button danger" type="button" id="reset-tool">Svuota posizione</button>
         <button class="button secondary" type="button" id="archive-tool">Archivia e inserisci nuovo</button>
+        <button class="button secondary" type="button" id="duplicate-tool">Duplica</button>
         <button class="button" type="submit">Salva utensile</button>
       </div>
     </form>
@@ -92,7 +95,7 @@
     </section>
 
     <section class="cutting-section">
-      <div class="section-title"><div><p class="eyebrow">Lavorazione</p><h3>Parametri per materiale</h3></div></div>
+      <div class="section-title"><div><p class="eyebrow">Lavorazione</p><h3>Parametri per materiale</h3></div><button class="button secondary" type="button" id="copy-cutting">Copia materiali</button></div>
       <div id="cutting-list" class="cutting-list"></div>
       <form id="cutting-form" class="cutting-form">
         <input type="hidden" name="id">
@@ -107,7 +110,7 @@
           <label><span>Larghezza ae (mm)</span><input name="ae_mm" type="number" min="0" step="0.01"></label>
         </div>
         <label><span>Note materiale</span><textarea name="notes" rows="2" maxlength="500"></textarea></label>
-        <div class="form-actions"><button class="button secondary" type="button" id="clear-cutting">Nuovo</button><button class="button" type="submit">Salva parametri</button></div>
+        <div class="form-actions"><button class="button secondary" type="button" id="clear-cutting">Nuovo</button><button class="button secondary" type="button" id="calculate-cutting">Calcola automaticamente</button><button class="button" type="submit">Salva parametri</button></div>
       </form>
     </section>
   </dialog>

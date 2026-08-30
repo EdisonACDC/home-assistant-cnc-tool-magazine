@@ -4,7 +4,7 @@
 
 # Home Assistant CNC Tool Magazine
 
-[![Version](https://img.shields.io/badge/version-0.7.0-087f74)](https://github.com/EdisonACDC/home-assistant-cnc-tool-magazine/releases)
+[![Version](https://img.shields.io/badge/version-0.8.0-087f74)](https://github.com/EdisonACDC/home-assistant-cnc-tool-magazine/releases)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-add--on-41BDF5)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -22,8 +22,10 @@
 - Un utensile montato per posizione e storico completo degli utensili sostituiti.
 - Ripristino rapido di un utensile archiviato con tutti i suoi parametri.
 - Popup separato per ogni materiale.
+- Calcolo automatico di giri, velocità di taglio e avanzamento.
+- Duplicazione utensili e copia dei parametri materiali tra posizioni.
 - Esportazione completa in PDF A4, pronta per stampa e condivisione.
-- Esportazione JSON per il backup dei dati.
+- Esportazione e ripristino JSON con backup di sicurezza automatico.
 - Database SQLite persistente incluso nei backup di Home Assistant.
 - Interfaccia responsive per iPhone, Android, tablet e computer.
 
@@ -48,10 +50,11 @@ Ogni scheda numerata rappresenta la stessa posizione fisica nel magazzino della 
 
 Quando sostituisci un utensile, premi **Archivia e inserisci nuovo**. L'utensile precedente rimane nello storico della posizione insieme alle icone, alle misure, alle note e a tutti i parametri di taglio. Con **Monta** puoi ripristinarlo in qualsiasi momento.
 
-## Esportazione PDF e JSON
+## Esportazione PDF e backup JSON
 
 - **Esporta PDF** crea un rapporto con tutte le 30 posizioni, gli utensili montati, quelli archiviati e le schede di taglio per materiale.
 - **Esporta JSON** crea una copia strutturata dei dati utile come backup.
+- **Importa JSON** ripristina un backup e salva prima una copia automatica dello stato corrente.
 
 ## Compatibilità
 
@@ -70,7 +73,7 @@ Home Assistant CNC tool magazine, CNC tool management, milling machine tool data
 
 ## Versione
 
-Versione corrente: **0.7.0**. Consulta il [changelog](cnc_tool_magazine/CHANGELOG.md) per tutte le modifiche.
+Versione corrente: **0.8.0**. Consulta il [changelog](cnc_tool_magazine/CHANGELOG.md) per tutte le modifiche.
 
 ## Licenza
 

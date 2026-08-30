@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0
+
+- Importazione e ripristino dei backup JSON con validazione e backup automatico dello stato precedente.
+- Calcolo automatico di giri, velocità di taglio, avanzamento e avanzamento per dente.
+- Duplicazione di un utensile in un'altra posizione, conservando nello storico l'eventuale utensile sostituito.
+- Copia e aggiornamento rapido dei parametri materiali tra posizioni.
+
 ## 0.7.0
 
 - Aggiunta l'esportazione PDF completa mantenendo disponibile il backup JSON.
