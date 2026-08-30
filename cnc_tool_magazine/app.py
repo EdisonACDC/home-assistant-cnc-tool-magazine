@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
@@ -23,6 +23,9 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
+from reportlab.graphics import renderSVG
+from reportlab.graphics.barcode import qr
+from reportlab.graphics.shapes import Drawing
 from reportlab.platypus import Image, LongTable, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 APP_DIR = Path(__file__).resolve().parent
@@ -38,7 +41,12 @@ TOOL_FIELDS = {
     "tool_type",
     "flutes",
     "notes",
+    "status",
+    "usage_hours",
+    "life_hours",
 }
+TOOL_STATUSES = {"new", "in_use", "to_sharpen", "maintenance", "worn"}
+STATUS_LABELS = {"new": "Nuovo", "in_use": "In uso", "to_sharpen": "Da affilare", "maintenance": "In manutenzione", "worn": "Fuori servizio"}
 TOOL_ICONS = {
     "",
     "end_mill",
@@ -73,6 +81,18 @@ CUTTING_FIELDS = {
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def qr_svg(value: str, size: int = 320) -> bytes:
+    parsed = urlparse(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or len(value) > 2048:
+        raise ValueError("Indirizzo QR non valido")
+    widget = qr.QrCodeWidget(value)
+    x1, y1, x2, y2 = widget.getBounds()
+    scale = size / max(x2 - x1, y2 - y1)
+    drawing = Drawing(size, size, transform=[scale, 0, 0, scale, -x1 * scale, -y1 * scale])
+    drawing.add(widget)
+    return renderSVG.drawToString(drawing).encode("utf-8")
 
 
 def _pdf_text(value: object, suffix: str = "") -> str:
@@ -157,7 +177,7 @@ def build_pdf_report(tools: list[dict], machine: dict, exported_at: str) -> byte
     story.extend([summary, Spacer(1, 6 * mm), Paragraph("Panoramica delle 30 posizioni", h1)])
 
     overview = [[Paragraph(value, centered) for value in
-                 ("Pos.", "Stato", "T", "D", "H", "Descrizione", "Tipo", "Diametro", "Lunghezza", "Archivio")]]
+                 ("Pos.", "Occupazione", "T", "D", "H", "Descrizione", "Tipo", "Diametro", "Lunghezza", "Condizione", "Vita", "Archivio")]]
     for tool in tools:
         occupied = _tool_is_occupied(tool)
         overview.append([
@@ -165,11 +185,14 @@ def build_pdf_report(tools: list[dict], machine: dict, exported_at: str) -> byte
             Paragraph(_pdf_text(tool.get("t_number")), centered), Paragraph(_pdf_text(tool.get("d_offset")), centered),
             Paragraph(_pdf_text(tool.get("h_offset")), centered), Paragraph(_pdf_text(tool.get("description")), small),
             Paragraph(_pdf_text(tool.get("tool_type")), small), Paragraph(_pdf_text(tool.get("diameter_mm"), " mm"), centered),
-            Paragraph(_pdf_text(tool.get("length_mm"), " mm"), centered), Paragraph(str(len(tool.get("history", []))), centered),
+            Paragraph(_pdf_text(tool.get("length_mm"), " mm"), centered),
+            Paragraph(STATUS_LABELS.get(tool.get("status"), "-"), centered),
+            Paragraph(_pdf_text(tool.get("remaining_percent"), "%"), centered),
+            Paragraph(str(len(tool.get("history", []))), centered),
         ])
     overview_table = LongTable(
         overview, repeatRows=1,
-        colWidths=[10 * mm, 18 * mm, 10 * mm, 10 * mm, 10 * mm, 53 * mm, 35 * mm, 24 * mm, 24 * mm, 17 * mm],
+        colWidths=[9 * mm, 17 * mm, 9 * mm, 9 * mm, 9 * mm, 43 * mm, 29 * mm, 21 * mm, 21 * mm, 25 * mm, 15 * mm, 15 * mm],
     )
     overview_style = [
         ("BACKGROUND", (0, 0), (-1, 0), header_bg), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
@@ -188,7 +211,12 @@ def build_pdf_report(tools: list[dict], machine: dict, exported_at: str) -> byte
             Paragraph(f"<b>{_pdf_text(tool.get('description') or tool.get('tool_type') or 'Utensile senza descrizione')}</b>", body),
             Paragraph(f"<b>T:</b> {_pdf_text(tool.get('t_number'))}<br/><b>D:</b> {_pdf_text(tool.get('d_offset'))}<br/><b>H:</b> {_pdf_text(tool.get('h_offset'))}", body),
             Paragraph(f"<b>Diametro:</b> {_pdf_text(tool.get('diameter_mm'), ' mm')}<br/><b>Lunghezza:</b> {_pdf_text(tool.get('length_mm'), ' mm')}<br/><b>Taglienti:</b> {_pdf_text(tool.get('flutes'))}", body),
-            Paragraph(f"<b>Tipo:</b> {_pdf_text(tool.get('tool_type'))}<br/><b>Note:</b> {_pdf_text(tool.get('notes'))}", body),
+            Paragraph(
+                f"<b>Tipo:</b> {_pdf_text(tool.get('tool_type'))}<br/>"
+                f"<b>Stato:</b> {_pdf_text(STATUS_LABELS.get(tool.get('status')))}<br/>"
+                f"<b>Utilizzo:</b> {_pdf_text(tool.get('usage_hours_current', tool.get('usage_hours')), ' ore')} / {_pdf_text(tool.get('life_hours'), ' ore')}<br/>"
+                f"<b>Note:</b> {_pdf_text(tool.get('notes'))}", body,
+            ),
         ]]
         table = Table(data, colWidths=[18 * mm, 58 * mm, 30 * mm, 48 * mm, 80 * mm])
         table.setStyle(TableStyle([
@@ -288,6 +316,10 @@ def init_db(slot_count: int = 30) -> None:
                 icon TEXT NOT NULL DEFAULT '',
                 flutes INTEGER,
                 notes TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'in_use',
+                usage_hours REAL NOT NULL DEFAULT 0,
+                life_hours REAL,
+                timer_started_at TEXT,
                 updated_at TEXT
             );
 
@@ -319,6 +351,14 @@ def init_db(slot_count: int = 30) -> None:
         columns = {row[1] for row in db.execute("PRAGMA table_info(tools)")}
         if "icon" not in columns:
             db.execute("ALTER TABLE tools ADD COLUMN icon TEXT NOT NULL DEFAULT ''")
+        if "status" not in columns:
+            db.execute("ALTER TABLE tools ADD COLUMN status TEXT NOT NULL DEFAULT 'in_use'")
+        if "usage_hours" not in columns:
+            db.execute("ALTER TABLE tools ADD COLUMN usage_hours REAL NOT NULL DEFAULT 0")
+        if "life_hours" not in columns:
+            db.execute("ALTER TABLE tools ADD COLUMN life_hours REAL")
+        if "timer_started_at" not in columns:
+            db.execute("ALTER TABLE tools ADD COLUMN timer_started_at TEXT")
         db.executemany(
             "INSERT OR IGNORE INTO tools(slot, t_number, d_offset, h_offset) VALUES (?, ?, ?, ?)",
             ((slot, slot, slot, slot) for slot in range(1, slot_count + 1)),
@@ -346,6 +386,16 @@ def list_tools() -> list[dict]:
     for tool in tools:
         tool["cutting_parameters"] = by_slot.get(tool["slot"], [])
         tool["history"] = []
+        usage = float(tool.get("usage_hours") or 0)
+        if tool.get("timer_started_at"):
+            try:
+                started = datetime.fromisoformat(tool["timer_started_at"])
+                usage += max(0, (datetime.now(timezone.utc) - started).total_seconds() / 3600)
+            except (TypeError, ValueError):
+                pass
+        tool["usage_hours_current"] = round(usage, 3)
+        life = tool.get("life_hours")
+        tool["remaining_percent"] = max(0, min(100, round((1 - usage / life) * 100))) if life else None
     by_tool_slot = {tool["slot"]: tool for tool in tools}
     for item in history_rows:
         try:
@@ -381,7 +431,7 @@ def clean_value(field: str, value):
         return None if field not in {"description", "tool_type", "icon", "notes", "material", "coolant"} else ""
     if field in {"t_number", "d_offset", "h_offset", "flutes", "rpm"}:
         return int(value)
-    if field in {"diameter_mm", "length_mm", "vc_m_min", "fz_mm_tooth", "feed_mm_min", "ap_mm", "ae_mm"}:
+    if field in {"diameter_mm", "length_mm", "usage_hours", "life_hours", "vc_m_min", "fz_mm_tooth", "feed_mm_min", "ap_mm", "ae_mm"}:
         return float(value)
     return str(value).strip()
 
@@ -390,11 +440,23 @@ def update_tool(slot: int, payload: dict) -> dict:
     values = {field: clean_value(field, payload[field]) for field in TOOL_FIELDS if field in payload}
     if "icon" in values and values["icon"] not in TOOL_ICONS:
         raise ValueError("Icona utensile non valida")
+    if "status" in values and values["status"] not in TOOL_STATUSES:
+        raise ValueError("Stato utensile non valido")
+    if (values.get("usage_hours") or 0) < 0 or (values.get("life_hours") or 0) < 0:
+        raise ValueError("Le ore non possono essere negative")
     if not values:
         raise ValueError("Nessun campo utensile valido")
-    values["updated_at"] = utc_now()
-    assignments = ", ".join(f"{field} = ?" for field in values)
     with connect() as db:
+        current = db.execute("SELECT usage_hours, life_hours, status FROM tools WHERE slot = ?", (slot,)).fetchone()
+        if not current:
+            raise LookupError("Posizione non trovata")
+        usage = values.get("usage_hours", current["usage_hours"]) or 0
+        life = values.get("life_hours", current["life_hours"])
+        status = values.get("status", current["status"])
+        if life and usage >= life and status not in {"worn", "maintenance"}:
+            values["status"] = "to_sharpen"
+        values["updated_at"] = utc_now()
+        assignments = ", ".join(f"{field} = ?" for field in values)
         result = db.execute(
             f"UPDATE tools SET {assignments} WHERE slot = ?",
             [*values.values(), slot],
@@ -410,7 +472,8 @@ def _reset_tool(db: sqlite3.Connection, slot: int) -> None:
     result = db.execute(
             """UPDATE tools SET t_number = ?, d_offset = ?, h_offset = ?,
                diameter_mm = NULL, length_mm = NULL, description = '', tool_type = '', icon = '',
-               flutes = NULL, notes = '', updated_at = ? WHERE slot = ?""",
+               flutes = NULL, notes = '', status = 'in_use', usage_hours = 0, life_hours = NULL,
+               timer_started_at = NULL, updated_at = ? WHERE slot = ?""",
             (slot, slot, slot, utc_now(), slot),
         )
     if result.rowcount != 1:
@@ -449,8 +512,53 @@ def _store_history(db: sqlite3.Connection, slot: int, tool: dict, cuts: list[dic
     return int(cursor.lastrowid)
 
 
+def _settle_timer(db: sqlite3.Connection, slot: int) -> float:
+    row = db.execute("SELECT usage_hours, life_hours, status, timer_started_at FROM tools WHERE slot = ?", (slot,)).fetchone()
+    if not row:
+        raise LookupError("Posizione non trovata")
+    usage = float(row["usage_hours"] or 0)
+    if row["timer_started_at"]:
+        try:
+            started = datetime.fromisoformat(row["timer_started_at"])
+            usage += max(0, (datetime.now(timezone.utc) - started).total_seconds() / 3600)
+        except (TypeError, ValueError):
+            pass
+    status = row["status"]
+    if row["life_hours"] and usage >= row["life_hours"] and status not in {"worn", "maintenance"}:
+        status = "to_sharpen"
+    db.execute(
+        "UPDATE tools SET usage_hours = ?, status = ?, timer_started_at = NULL, updated_at = ? WHERE slot = ?",
+        (round(usage, 3), status, utc_now(), slot),
+    )
+    return usage
+
+
+def start_usage(slot: int) -> None:
+    with connect() as db:
+        tool, cuts = _active_snapshot(db, slot)
+        if not (_has_tool_data(tool) or cuts):
+            raise ValueError("Inserisci prima un utensile nella posizione")
+        if tool.get("timer_started_at"):
+            raise ValueError("Il conteggio è già attivo")
+        db.execute(
+            "UPDATE tools SET timer_started_at = ?, status = 'in_use', updated_at = ? WHERE slot = ?",
+            (utc_now(), utc_now(), slot),
+        )
+
+
+def stop_usage(slot: int) -> float:
+    with connect() as db:
+        row = db.execute("SELECT timer_started_at FROM tools WHERE slot = ?", (slot,)).fetchone()
+        if not row:
+            raise LookupError("Posizione non trovata")
+        if not row["timer_started_at"]:
+            raise ValueError("Il conteggio non è attivo")
+        return _settle_timer(db, slot)
+
+
 def archive_active_tool(slot: int) -> int:
     with connect() as db:
+        _settle_timer(db, slot)
         tool, cuts = _active_snapshot(db, slot)
         if not _has_tool_data(tool):
             raise ValueError("Non c'è un utensile attivo da archiviare")
@@ -466,6 +574,7 @@ def activate_history_tool(slot: int, history_id: int) -> None:
         ).fetchone()
         if not archived:
             raise LookupError("Utensile storico non trovato")
+        _settle_timer(db, slot)
         active_tool, active_cuts = _active_snapshot(db, slot)
         if _has_tool_data(active_tool):
             _store_history(db, slot, active_tool, active_cuts)
@@ -473,7 +582,7 @@ def activate_history_tool(slot: int, history_id: int) -> None:
         selected_tool = json.loads(archived["tool_json"])
         selected_cuts = json.loads(archived["cutting_json"])
         _reset_tool(db, slot)
-        values = {field: selected_tool.get(field) for field in TOOL_FIELDS}
+        values = _clean_tool_import({**selected_tool, "slot": slot}, slot)
         values["updated_at"] = utc_now()
         assignments = ", ".join(f"{field} = ?" for field in values)
         db.execute(f"UPDATE tools SET {assignments} WHERE slot = ?", [*values.values(), slot])
@@ -547,9 +656,16 @@ def delete_cutting(slot: int, item_id: int) -> None:
 def _clean_tool_import(raw: object, expected_slot: int) -> dict:
     if not isinstance(raw, dict) or raw.get("slot") != expected_slot:
         raise ValueError(f"Dati non validi per la posizione {expected_slot}")
-    values = {field: clean_value(field, raw.get(field)) for field in TOOL_FIELDS}
+    defaults = {"status": "in_use", "usage_hours": 0, "life_hours": None}
+    values = {field: clean_value(field, raw.get(field, defaults.get(field))) for field in TOOL_FIELDS}
+    values["status"] = values["status"] or "in_use"
+    values["usage_hours"] = values["usage_hours"] or 0
     if values["icon"] not in TOOL_ICONS:
         raise ValueError(f"Icona non valida nella posizione {expected_slot}")
+    if values["status"] not in TOOL_STATUSES:
+        raise ValueError(f"Stato non valido nella posizione {expected_slot}")
+    if values["usage_hours"] < 0 or (values["life_hours"] is not None and values["life_hours"] < 0):
+        raise ValueError(f"Ore non valide nella posizione {expected_slot}")
     return values
 
 
@@ -610,7 +726,7 @@ def restore_export(payload: dict) -> dict:
         db.execute("DELETE FROM tool_history")
         for item in normalized:
             slot = item["slot"]
-            values = {**item["tool"], "updated_at": utc_now()}
+            values = {**item["tool"], "timer_started_at": None, "updated_at": utc_now()}
             assignments = ", ".join(f"{field} = ?" for field in values)
             db.execute(f"UPDATE tools SET {assignments} WHERE slot = ?", [*values.values(), slot])
             for cutting in item["cuts"]:
@@ -644,6 +760,8 @@ def duplicate_tool(source_slot: int, target_slot: int) -> dict:
     if source_slot == target_slot:
         raise ValueError("Scegli una posizione di destinazione diversa")
     with connect() as db:
+        _settle_timer(db, source_slot)
+        _settle_timer(db, target_slot)
         source_tool, source_cuts = _active_snapshot(db, source_slot)
         if not (_has_tool_data(source_tool) or source_cuts):
             raise ValueError("La posizione di origine non contiene un utensile")
@@ -741,6 +859,22 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(content)
             return
+        qr_match = re.fullmatch(r"/api/tools/(\d+)/qr\.svg", path)
+        if qr_match:
+            self.valid_slot(qr_match.group(1))
+            target = parse_qs(urlparse(self.path).query).get("target", [""])[0]
+            try:
+                content = qr_svg(target)
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+                return
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "image/svg+xml")
+            self.send_header("Content-Length", str(len(content)))
+            self.send_header("Cache-Control", "private, max-age=300")
+            self.end_headers()
+            self.wfile.write(content)
+            return
         if path in {"/", "/index.html"}:
             self.send_static("index.html")
             return
@@ -785,6 +919,8 @@ class Handler(BaseHTTPRequestHandler):
             activate_match = re.fullmatch(r"/api/tools/(\d+)/history/(\d+)/activate", path)
             duplicate_match = re.fullmatch(r"/api/tools/(\d+)/duplicate", path)
             copy_cutting_match = re.fullmatch(r"/api/tools/(\d+)/cutting/copy", path)
+            usage_start_match = re.fullmatch(r"/api/tools/(\d+)/usage/start", path)
+            usage_stop_match = re.fullmatch(r"/api/tools/(\d+)/usage/stop", path)
             if archive_match:
                 history_id = archive_active_tool(self.valid_slot(archive_match.group(1)))
                 self.send_json({"ok": True, "history_id": history_id})
@@ -810,6 +946,14 @@ class Handler(BaseHTTPRequestHandler):
                         self.valid_slot(copy_cutting_match.group(1)),
                     )
                 )
+                return
+            if usage_start_match:
+                start_usage(self.valid_slot(usage_start_match.group(1)))
+                self.send_json({"ok": True})
+                return
+            if usage_stop_match:
+                hours = stop_usage(self.valid_slot(usage_stop_match.group(1)))
+                self.send_json({"ok": True, "usage_hours": round(hours, 3)})
                 return
             self.send_error(HTTPStatus.NOT_FOUND)
         except (ValueError, TypeError, json.JSONDecodeError) as exc:

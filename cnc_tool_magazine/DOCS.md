@@ -14,6 +14,16 @@ Ogni scheda numerata rappresenta la stessa posizione fisica nel magazzino della 
 
 Usa **Archivia e inserisci nuovo** quando sostituisci l'utensile montato. L'utensile precedente e tutti i suoi parametri di taglio restano nello storico della stessa posizione. Il comando **Monta** riporta uno storico in posizione attiva e archivia automaticamente quello attualmente montato.
 
+## Stato e vita utensile
+
+Scegli lo stato tra **Nuovo**, **In uso**, **Da affilare**, **In manutenzione** e **Fuori servizio**. Imposta le ore già utilizzate e la vita prevista. Con **Avvia** e **Ferma** il timer registra l'utilizzo anche se chiudi la finestra; la percentuale residua viene calcolata automaticamente. Quando raggiunge il limite, lo stato passa a **Da affilare**.
+
+## QR ed etichette
+
+Il pulsante **QR** nella scheda crea l'etichetta dell'utensile montato. **Etichette QR** nella schermata principale prepara gli utensili montati e archiviati e permette di mostrare anche tutti i 30 posti. Premi **Stampa etichette** per stampare o salvare il foglio in PDF.
+
+Scansionando il QR si apre direttamente la scheda della posizione. Il telefono deve poter raggiungere lo stesso indirizzo di Home Assistant ed essere già autenticato.
+
 ## Calcoli e riutilizzo dei dati
 
 - **Calcola automaticamente** usa diametro, Vc, numero di taglienti e Fz per calcolare giri e avanzamento. Può anche ricavare Vc o Fz quando sono i valori mancanti.

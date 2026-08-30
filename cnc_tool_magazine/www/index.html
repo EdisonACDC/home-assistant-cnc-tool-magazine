@@ -20,6 +20,7 @@
     <div class="actions">
       <input id="import-file" type="file" accept="application/json,.json" hidden>
       <button class="button secondary" id="import-button">Importa JSON</button>
+      <button class="button secondary" id="labels-button">Etichette QR</button>
       <button class="button secondary" id="export-button">Esporta JSON</button>
       <button class="button secondary" id="export-pdf-button">Esporta PDF</button>
       <button class="button" id="refresh-button">Aggiorna</button>
@@ -79,12 +80,20 @@
         <label><span>Numero taglienti Z</span><input name="flutes" type="number" min="1" max="100" step="1"></label>
         <label><span>Diametro reale (mm)</span><input name="diameter_mm" type="number" min="0" step="0.001"></label>
         <label><span>Altezza/Lunghezza (mm)</span><input name="length_mm" type="number" min="0" step="0.001"></label>
+        <label><span>Stato utensile</span><select name="status"><option value="new">Nuovo</option><option value="in_use">In uso</option><option value="to_sharpen">Da affilare</option><option value="maintenance">In manutenzione</option><option value="worn">Fuori servizio</option></select></label>
+        <label><span>Ore utilizzate</span><input name="usage_hours" type="number" min="0" step="0.01"></label>
+        <label><span>Vita prevista (ore)</span><input name="life_hours" type="number" min="0" step="0.01" placeholder="Es. 100"></label>
+      </div>
+      <div class="usage-panel">
+        <div><small>Conteggio utilizzo</small><strong id="usage-summary">0 ore</strong><span id="life-summary">Vita prevista non impostata</span></div>
+        <div class="usage-actions"><button class="button secondary" type="button" id="start-usage">▶ Avvia</button><button class="button secondary" type="button" id="stop-usage">■ Ferma</button></div>
       </div>
       <label><span>Note utensile</span><textarea name="notes" rows="2" maxlength="500"></textarea></label>
       <div class="form-actions">
         <button class="button danger" type="button" id="reset-tool">Svuota posizione</button>
         <button class="button secondary" type="button" id="archive-tool">Archivia e inserisci nuovo</button>
         <button class="button secondary" type="button" id="duplicate-tool">Duplica</button>
+        <button class="button secondary" type="button" id="tool-qr">QR</button>
         <button class="button" type="submit">Salva utensile</button>
       </div>
     </form>
@@ -139,6 +148,17 @@
         <button type="button" class="icon-button" id="close-icon-dialog" aria-label="Chiudi">×</button>
       </div>
       <div id="icon-grid" class="icon-grid"></div>
+    </div>
+  </dialog>
+
+  <dialog id="labels-dialog" class="labels-dialog">
+    <div class="labels-dialog-content">
+      <div class="dialog-head no-print">
+        <div><p class="eyebrow">Etichette utensili</p><h2>Etichette QR stampabili</h2><p class="subtitle">Ogni QR apre direttamente la posizione corrispondente.</p></div>
+        <button type="button" class="icon-button" id="close-labels-dialog" aria-label="Chiudi">×</button>
+      </div>
+      <div class="label-actions no-print"><button class="button secondary" id="show-all-labels" type="button">Mostra tutti i 30 posti</button><button class="button" id="print-labels" type="button">Stampa etichette</button></div>
+      <section id="label-sheet" class="label-sheet"></section>
     </div>
   </dialog>
 

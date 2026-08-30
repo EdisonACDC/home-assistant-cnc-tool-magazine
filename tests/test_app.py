@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import sys
@@ -133,6 +134,44 @@ class DatabaseTests(unittest.TestCase):
             app.restore_export(broken)
         self.assertEqual("Da conservare", app.list_tools()[0]["description"])
         self.assertFalse((Path(self.temp.name) / "backups").exists())
+
+    def test_old_backup_restores_with_new_life_defaults(self):
+        exported = app.export_data()
+        for tool in exported["tools"]:
+            tool.pop("status", None)
+            tool.pop("usage_hours", None)
+            tool.pop("life_hours", None)
+        app.restore_export(exported)
+        tool = app.list_tools()[0]
+        self.assertEqual("in_use", tool["status"])
+        self.assertEqual(0, tool["usage_hours"])
+        self.assertIsNone(tool["life_hours"])
+
+    def test_usage_timer_accumulates_and_calculates_remaining_life(self):
+        app.update_tool(10, {"description": "Fresa", "life_hours": 10, "usage_hours": 2})
+        app.start_usage(10)
+        started = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat(timespec="seconds")
+        with app.connect() as db:
+            db.execute("UPDATE tools SET timer_started_at = ? WHERE slot = 10", (started,))
+        hours = app.stop_usage(10)
+        tool = app.list_tools()[9]
+        self.assertAlmostEqual(5, hours, places=2)
+        self.assertEqual(50, tool["remaining_percent"])
+        self.assertIsNone(tool["timer_started_at"])
+
+    def test_life_limit_sets_status_to_sharpen(self):
+        app.update_tool(14, {"description": "Fresa", "life_hours": 1, "usage_hours": 1})
+        with app.connect() as db:
+            db.execute("UPDATE tools SET timer_started_at = ? WHERE slot = 14", (app.utc_now(),))
+        app.stop_usage(14)
+        self.assertEqual("to_sharpen", app.list_tools()[13]["status"])
+
+    def test_qr_svg_contains_valid_svg(self):
+        content = app.qr_svg("https://home.example/app?slot=7")
+        self.assertIn(b"<svg", content)
+        self.assertGreater(len(content), 1000)
+        with self.assertRaises(ValueError):
+            app.qr_svg("javascript:alert(1)")
 
     def test_pdf_export_contains_active_archived_and_all_positions(self):
         app.update_tool(3, {"description": "Fresa attiva", "icon": "end_mill", "diameter_mm": 10})

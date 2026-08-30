@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.0
+
+- QR generato localmente per ogni posizione e apertura diretta della relativa scheda dal telefono.
+- Foglio di etichette QR stampabile per gli utensili montati o per tutti i 30 posti.
+- Stati utensile: nuovo, in uso, da affilare, in manutenzione e fuori servizio.
+- Timer persistente per registrare le ore di utilizzo con comandi Avvia e Ferma.
+- Calcolo automatico della vita residua; al raggiungimento del limite lo stato passa a “Da affilare”.
+- Stato, ore e vita residua inclusi nel rapporto PDF e nei backup JSON.
+- Compatibilità mantenuta con i backup creati dalle versioni precedenti.
+
 ## 0.8.0
 
 - Importazione e ripristino dei backup JSON con validazione e backup automatico dello stato precedente.

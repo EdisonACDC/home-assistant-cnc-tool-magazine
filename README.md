@@ -4,7 +4,7 @@
 
 # Home Assistant CNC Tool Magazine
 
-[![Version](https://img.shields.io/badge/version-0.8.0-087f74)](https://github.com/EdisonACDC/home-assistant-cnc-tool-magazine/releases)
+[![Version](https://img.shields.io/badge/version-0.9.0-087f74)](https://github.com/EdisonACDC/home-assistant-cnc-tool-magazine/releases)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-add--on-41BDF5)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -24,6 +24,8 @@
 - Popup separato per ogni materiale.
 - Calcolo automatico di giri, velocità di taglio e avanzamento.
 - Duplicazione utensili e copia dei parametri materiali tra posizioni.
+- Stato dell'utensile, timer persistente e vita residua calcolata automaticamente.
+- QR per aprire direttamente ogni posizione e foglio di etichette stampabile.
 - Esportazione completa in PDF A4, pronta per stampa e condivisione.
 - Esportazione e ripristino JSON con backup di sicurezza automatico.
 - Database SQLite persistente incluso nei backup di Home Assistant.
@@ -73,7 +75,7 @@ Home Assistant CNC tool magazine, CNC tool management, milling machine tool data
 
 ## Versione
 
-Versione corrente: **0.8.0**. Consulta il [changelog](cnc_tool_magazine/CHANGELOG.md) per tutte le modifiche.
+Versione corrente: **0.9.0**. Consulta il [changelog](cnc_tool_magazine/CHANGELOG.md) per tutte le modifiche.
 
 ## Licenza
 
