@@ -57,7 +57,7 @@ async function request(url, options = {}) {
 }
 
 function isOccupied(tool) {
-  return Boolean(tool.description || tool.tool_type || tool.diameter_mm || tool.length_mm);
+  return Boolean(tool.description || tool.tool_type || tool.icon || tool.diameter_mm || tool.length_mm || tool.flutes || tool.notes || tool.cutting_parameters.length);
 }
 
 function render() {
@@ -315,6 +315,97 @@ document.querySelector("#reset-tool").addEventListener("click", async () => {
     dialog.close();
     toast(`Posizione ${state.activeSlot} svuotata`);
   } catch (error) { toast(error.message, true); }
+});
+
+document.querySelector("#duplicate-tool").addEventListener("click", async () => {
+  const value = prompt(`In quale posizione vuoi duplicare l'utensile del posto ${state.activeSlot}? Inserisci un numero da 1 a 30.`);
+  if (value === null) return;
+  const target = Number(value);
+  if (!Number.isInteger(target) || target < 1 || target > 30 || target === state.activeSlot) {
+    toast("Scegli una posizione diversa, compresa tra 1 e 30", true);
+    return;
+  }
+  const destination = state.tools.find(tool => tool.slot === target);
+  const warning = isOccupied(destination)
+    ? `La posizione ${target} è occupata: l'utensile attivo verrà conservato nel suo storico. Continuare?`
+    : `Duplicare l'utensile nella posizione libera ${target}?`;
+  if (!confirm(warning)) return;
+  try {
+    await request(`api/tools/${state.activeSlot}/duplicate`, {method:"POST", body:JSON.stringify({target_slot:target})});
+    await loadTools();
+    toast(`Utensile duplicato nella posizione ${target}`);
+  } catch (error) { toast(error.message, true); }
+});
+
+document.querySelector("#copy-cutting").addEventListener("click", async () => {
+  const value = prompt(`Da quale posizione vuoi copiare i materiali nel posto ${state.activeSlot}? Inserisci un numero da 1 a 30.`);
+  if (value === null) return;
+  const source = Number(value);
+  if (!Number.isInteger(source) || source < 1 || source > 30 || source === state.activeSlot) {
+    toast("Scegli una posizione di origine diversa, compresa tra 1 e 30", true);
+    return;
+  }
+  if (!confirm("I materiali con lo stesso nome verranno aggiornati; gli altri resteranno invariati. Continuare?")) return;
+  try {
+    const result = await request(`api/tools/${state.activeSlot}/cutting/copy`, {method:"POST", body:JSON.stringify({source_slot:source})});
+    await loadTools();
+    openRefresh();
+    toast(`${result.copied} materiali copiati dalla posizione ${source}`);
+  } catch (error) { toast(error.message, true); }
+});
+
+document.querySelector("#calculate-cutting").addEventListener("click", () => {
+  const diameter = Number(toolForm.elements.diameter_mm.value);
+  const flutes = Number(toolForm.elements.flutes.value);
+  let vc = Number(cuttingForm.elements.vc_m_min.value);
+  let rpm = Number(cuttingForm.elements.rpm.value);
+  let fz = Number(cuttingForm.elements.fz_mm_tooth.value);
+  let feed = Number(cuttingForm.elements.feed_mm_min.value);
+  let calculated = false;
+
+  if (diameter > 0 && vc > 0) {
+    rpm = Math.round((vc * 1000) / (Math.PI * diameter));
+    cuttingForm.elements.rpm.value = rpm;
+    calculated = true;
+  } else if (diameter > 0 && rpm > 0 && !vc) {
+    vc = (Math.PI * diameter * rpm) / 1000;
+    cuttingForm.elements.vc_m_min.value = vc.toFixed(1);
+    calculated = true;
+  }
+  if (rpm > 0 && flutes > 0 && fz > 0) {
+    feed = rpm * flutes * fz;
+    cuttingForm.elements.feed_mm_min.value = feed.toFixed(1);
+    calculated = true;
+  } else if (rpm > 0 && flutes > 0 && feed > 0 && !fz) {
+    fz = feed / (rpm * flutes);
+    cuttingForm.elements.fz_mm_tooth.value = fz.toFixed(3);
+    calculated = true;
+  }
+  toast(calculated ? "Giri e avanzamento calcolati: controlla i valori prima di salvarli" : "Inserisci diametro e Vc, oppure giri, taglienti e Fz", !calculated);
+});
+
+const importFile = document.querySelector("#import-file");
+document.querySelector("#import-button").addEventListener("click", () => {
+  importFile.value = "";
+  importFile.click();
+});
+importFile.addEventListener("change", async () => {
+  const file = importFile.files[0];
+  if (!file) return;
+  try {
+    if (file.size > 5_000_000) throw new Error("Il file supera il limite di 5 MB");
+    const data = JSON.parse(await file.text());
+    if (data.schema_version !== 1 || !Array.isArray(data.tools) || data.tools.length !== 30) {
+      throw new Error("Questo non è un backup valido di CNC Tool Magazine");
+    }
+    const occupied = data.tools.filter(tool => isOccupied({...tool, cutting_parameters:tool.cutting_parameters || []})).length;
+    const materials = data.tools.reduce((sum, tool) => sum + (tool.cutting_parameters?.length || 0), 0);
+    const history = data.tools.reduce((sum, tool) => sum + (tool.history?.length || 0), 0);
+    if (!confirm(`Ripristinare questo backup?\n\n${occupied} utensili montati\n${history} utensili nello storico\n${materials} materiali\n\nLo stato attuale verrà salvato automaticamente.`)) return;
+    const result = await request("api/import", {method:"POST", body:JSON.stringify(data)});
+    await loadTools();
+    toast(`Ripristino completato. Backup precedente: ${result.backup}`);
+  } catch (error) { toast(`Importazione non riuscita: ${error.message}`, true); }
 });
 
 document.querySelector("#export-button").addEventListener("click", async () => {

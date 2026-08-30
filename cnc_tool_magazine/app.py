@@ -360,6 +360,10 @@ def list_tools() -> list[dict]:
     return tools
 
 
+def export_data() -> dict:
+    return {"schema_version": 1, "exported_at": utc_now(), "machine": machine_options(), "tools": list_tools()}
+
+
 def machine_options() -> dict:
     defaults = {"machine_name": "PentaMac / Visel", "magazine_slots": 30}
     options_path = Path("/data/options.json")
@@ -540,6 +544,152 @@ def delete_cutting(slot: int, item_id: int) -> None:
             raise LookupError("Parametro non trovato")
 
 
+def _clean_tool_import(raw: object, expected_slot: int) -> dict:
+    if not isinstance(raw, dict) or raw.get("slot") != expected_slot:
+        raise ValueError(f"Dati non validi per la posizione {expected_slot}")
+    values = {field: clean_value(field, raw.get(field)) for field in TOOL_FIELDS}
+    if values["icon"] not in TOOL_ICONS:
+        raise ValueError(f"Icona non valida nella posizione {expected_slot}")
+    return values
+
+
+def _clean_cutting_import(raw: object, context: str) -> dict:
+    if not isinstance(raw, dict):
+        raise ValueError(f"Parametri di taglio non validi: {context}")
+    values = {field: clean_value(field, raw.get(field)) for field in CUTTING_FIELDS}
+    if not values["material"]:
+        raise ValueError(f"Materiale mancante: {context}")
+    return values
+
+
+def _validate_import(payload: dict) -> list[dict]:
+    if payload.get("schema_version") != 1:
+        raise ValueError("Versione del backup non supportata")
+    raw_tools = payload.get("tools")
+    if not isinstance(raw_tools, list) or len(raw_tools) != 30:
+        raise ValueError("Il backup deve contenere esattamente le 30 posizioni")
+    by_slot = {item.get("slot"): item for item in raw_tools if isinstance(item, dict)}
+    if set(by_slot) != set(range(1, 31)):
+        raise ValueError("Le posizioni del backup devono essere uniche e comprese tra 1 e 30")
+
+    normalized = []
+    for slot in range(1, 31):
+        raw = by_slot[slot]
+        cuts_raw = raw.get("cutting_parameters", [])
+        history_raw = raw.get("history", [])
+        if not isinstance(cuts_raw, list) or not isinstance(history_raw, list):
+            raise ValueError(f"Materiali o storico non validi nella posizione {slot}")
+        cuts = [_clean_cutting_import(item, f"posizione {slot}") for item in cuts_raw]
+        if len({item["material"].casefold() for item in cuts}) != len(cuts):
+            raise ValueError(f"Materiali duplicati nella posizione {slot}")
+        history = []
+        for index, item in enumerate(history_raw, 1):
+            tool = _clean_tool_import({**item, "slot": slot} if isinstance(item, dict) else item, slot)
+            archived_cuts_raw = item.get("cutting_parameters", []) if isinstance(item, dict) else []
+            if not isinstance(archived_cuts_raw, list):
+                raise ValueError(f"Materiali storici non validi nella posizione {slot}")
+            archived_cuts = [
+                _clean_cutting_import(cut, f"storico {index}, posizione {slot}") for cut in archived_cuts_raw
+            ]
+            archived_at = item.get("archived_at") or utc_now()
+            history.append({"tool": tool, "cuts": archived_cuts, "archived_at": str(archived_at)})
+        normalized.append({"slot": slot, "tool": _clean_tool_import(raw, slot), "cuts": cuts, "history": history})
+    return normalized
+
+
+def restore_export(payload: dict) -> dict:
+    normalized = _validate_import(payload)
+    backup_dir = data_dir() / "backups"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
+    backup_path = backup_dir / f"cnc-tool-magazine-before-import-{stamp}.json"
+    backup_path.write_text(json.dumps(export_data(), ensure_ascii=False, indent=2), encoding="utf-8")
+
+    with connect() as db:
+        db.execute("DELETE FROM cutting_parameters")
+        db.execute("DELETE FROM tool_history")
+        for item in normalized:
+            slot = item["slot"]
+            values = {**item["tool"], "updated_at": utc_now()}
+            assignments = ", ".join(f"{field} = ?" for field in values)
+            db.execute(f"UPDATE tools SET {assignments} WHERE slot = ?", [*values.values(), slot])
+            for cutting in item["cuts"]:
+                cut_values = {**cutting, "updated_at": utc_now()}
+                columns = ["slot", *cut_values.keys()]
+                db.execute(
+                    f"INSERT INTO cutting_parameters ({', '.join(columns)}) VALUES ({', '.join('?' for _ in columns)})",
+                    [slot, *cut_values.values()],
+                )
+            for archived in reversed(item["history"]):
+                db.execute(
+                    "INSERT INTO tool_history(slot, tool_json, cutting_json, archived_at) VALUES (?, ?, ?, ?)",
+                    (
+                        slot,
+                        json.dumps(archived["tool"], ensure_ascii=False),
+                        json.dumps(archived["cuts"], ensure_ascii=False),
+                        archived["archived_at"],
+                    ),
+                )
+
+    return {
+        "ok": True,
+        "backup": backup_path.name,
+        "tools": sum(_has_tool_data(item["tool"]) or bool(item["cuts"]) for item in normalized),
+        "materials": sum(len(item["cuts"]) for item in normalized),
+        "history": sum(len(item["history"]) for item in normalized),
+    }
+
+
+def duplicate_tool(source_slot: int, target_slot: int) -> dict:
+    if source_slot == target_slot:
+        raise ValueError("Scegli una posizione di destinazione diversa")
+    with connect() as db:
+        source_tool, source_cuts = _active_snapshot(db, source_slot)
+        if not (_has_tool_data(source_tool) or source_cuts):
+            raise ValueError("La posizione di origine non contiene un utensile")
+        target_tool, target_cuts = _active_snapshot(db, target_slot)
+        archived_target = False
+        if _has_tool_data(target_tool) or target_cuts:
+            _store_history(db, target_slot, target_tool, target_cuts)
+            archived_target = True
+        _reset_tool(db, target_slot)
+        values = {field: source_tool.get(field) for field in TOOL_FIELDS}
+        values.update({"t_number": target_slot, "d_offset": target_slot, "h_offset": target_slot, "updated_at": utc_now()})
+        assignments = ", ".join(f"{field} = ?" for field in values)
+        db.execute(f"UPDATE tools SET {assignments} WHERE slot = ?", [*values.values(), target_slot])
+        for cutting in source_cuts:
+            cut_values = {field: cutting.get(field) for field in CUTTING_FIELDS}
+            cut_values["updated_at"] = utc_now()
+            columns = ["slot", *cut_values.keys()]
+            db.execute(
+                f"INSERT INTO cutting_parameters ({', '.join(columns)}) VALUES ({', '.join('?' for _ in columns)})",
+                [target_slot, *cut_values.values()],
+            )
+    return {"ok": True, "target_slot": target_slot, "materials": len(source_cuts), "archived_target": archived_target}
+
+
+def copy_cutting_parameters(source_slot: int, target_slot: int) -> dict:
+    if source_slot == target_slot:
+        raise ValueError("Scegli una posizione di origine diversa")
+    with connect() as db:
+        if not db.execute("SELECT 1 FROM tools WHERE slot = ?", (target_slot,)).fetchone():
+            raise LookupError("Posizione di destinazione non trovata")
+        rows = db.execute("SELECT * FROM cutting_parameters WHERE slot = ? ORDER BY material", (source_slot,)).fetchall()
+        if not rows:
+            raise ValueError("La posizione di origine non contiene materiali")
+        for row in rows:
+            values = {field: row[field] for field in CUTTING_FIELDS}
+            values["updated_at"] = utc_now()
+            columns = ["slot", *values.keys()]
+            updates = ", ".join(f"{field} = excluded.{field}" for field in values if field != "material")
+            db.execute(
+                f"INSERT INTO cutting_parameters ({', '.join(columns)}) VALUES ({', '.join('?' for _ in columns)}) "
+                f"ON CONFLICT(slot, material) DO UPDATE SET {updates}",
+                [target_slot, *values.values()],
+            )
+    return {"ok": True, "copied": len(rows)}
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "CNCToolMagazine/0.1"
 
@@ -557,7 +707,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def read_json(self) -> dict:
         length = int(self.headers.get("Content-Length", "0"))
-        if length <= 0 or length > 1_000_000:
+        if length <= 0 or length > 5_000_000:
             raise ValueError("Corpo richiesta non valido")
         value = json.loads(self.rfile.read(length))
         if not isinstance(value, dict):
@@ -577,9 +727,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"machine": machine_options(), "tools": list_tools()})
             return
         if path == "/api/export":
-            self.send_json(
-                {"schema_version": 1, "exported_at": utc_now(), "machine": machine_options(), "tools": list_tools()}
-            )
+            self.send_json(export_data())
             return
         if path == "/api/export/pdf":
             exported_at = utc_now()
@@ -630,8 +778,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         path = self.path_only()
         try:
+            if path == "/api/import":
+                self.send_json(restore_export(self.read_json()))
+                return
             archive_match = re.fullmatch(r"/api/tools/(\d+)/archive", path)
             activate_match = re.fullmatch(r"/api/tools/(\d+)/history/(\d+)/activate", path)
+            duplicate_match = re.fullmatch(r"/api/tools/(\d+)/duplicate", path)
+            copy_cutting_match = re.fullmatch(r"/api/tools/(\d+)/cutting/copy", path)
             if archive_match:
                 history_id = archive_active_tool(self.valid_slot(archive_match.group(1)))
                 self.send_json({"ok": True, "history_id": history_id})
@@ -639,6 +792,24 @@ class Handler(BaseHTTPRequestHandler):
             if activate_match:
                 activate_history_tool(self.valid_slot(activate_match.group(1)), int(activate_match.group(2)))
                 self.send_json({"ok": True})
+                return
+            if duplicate_match:
+                payload = self.read_json()
+                self.send_json(
+                    duplicate_tool(
+                        self.valid_slot(duplicate_match.group(1)),
+                        self.valid_slot(str(payload.get("target_slot", ""))),
+                    )
+                )
+                return
+            if copy_cutting_match:
+                payload = self.read_json()
+                self.send_json(
+                    copy_cutting_parameters(
+                        self.valid_slot(str(payload.get("source_slot", ""))),
+                        self.valid_slot(copy_cutting_match.group(1)),
+                    )
+                )
                 return
             self.send_error(HTTPStatus.NOT_FOUND)
         except (ValueError, TypeError, json.JSONDecodeError) as exc:

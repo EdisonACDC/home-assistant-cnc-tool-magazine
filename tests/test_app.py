@@ -89,6 +89,51 @@ class DatabaseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             app.update_tool(1, {"icon": "not-an-icon"})
 
+    def test_duplicate_tool_archives_target_and_copies_materials(self):
+        app.update_tool(2, {"description": "Fresa sorgente", "diameter_mm": 12, "flutes": 4})
+        app.upsert_cutting(2, {"material": "C45", "rpm": 4000})
+        app.update_tool(8, {"description": "Utensile precedente"})
+        result = app.duplicate_tool(2, 8)
+        target = app.list_tools()[7]
+        self.assertTrue(result["archived_target"])
+        self.assertEqual("Fresa sorgente", target["description"])
+        self.assertEqual((8, 8, 8), (target["t_number"], target["d_offset"], target["h_offset"]))
+        self.assertEqual("C45", target["cutting_parameters"][0]["material"])
+        self.assertEqual("Utensile precedente", target["history"][0]["description"])
+
+    def test_copy_cutting_parameters_merges_and_updates_materials(self):
+        app.upsert_cutting(3, {"material": "C45", "rpm": 5000})
+        app.upsert_cutting(3, {"material": "Alluminio", "rpm": 9000})
+        app.upsert_cutting(4, {"material": "c45", "rpm": 1000})
+        result = app.copy_cutting_parameters(3, 4)
+        materials = app.list_tools()[3]["cutting_parameters"]
+        self.assertEqual(2, result["copied"])
+        self.assertEqual(2, len(materials))
+        self.assertEqual(5000, next(item for item in materials if item["material"].casefold() == "c45")["rpm"])
+
+    def test_export_restore_round_trip_and_creates_backup(self):
+        app.update_tool(6, {"description": "Fresa backup", "icon": "end_mill"})
+        app.upsert_cutting(6, {"material": "Inox", "rpm": 3200})
+        app.update_tool(11, {"description": "Punta storica"})
+        app.archive_active_tool(11)
+        exported = app.export_data()
+        app.reset_tool(6)
+        result = app.restore_export(exported)
+        tools = app.list_tools()
+        self.assertEqual("Fresa backup", tools[5]["description"])
+        self.assertEqual("Inox", tools[5]["cutting_parameters"][0]["material"])
+        self.assertEqual("Punta storica", tools[10]["history"][0]["description"])
+        self.assertTrue((Path(self.temp.name) / "backups" / result["backup"]).is_file())
+
+    def test_invalid_restore_does_not_change_database(self):
+        app.update_tool(1, {"description": "Da conservare"})
+        broken = app.export_data()
+        broken["tools"] = broken["tools"][:-1]
+        with self.assertRaises(ValueError):
+            app.restore_export(broken)
+        self.assertEqual("Da conservare", app.list_tools()[0]["description"])
+        self.assertFalse((Path(self.temp.name) / "backups").exists())
+
     def test_pdf_export_contains_active_archived_and_all_positions(self):
         app.update_tool(3, {"description": "Fresa attiva", "icon": "end_mill", "diameter_mm": 10})
         app.upsert_cutting(3, {"material": "C45", "rpm": 4200, "feed_mm_min": 620})

@@ -14,10 +14,17 @@ Ogni scheda numerata rappresenta la stessa posizione fisica nel magazzino della 
 
 Usa **Archivia e inserisci nuovo** quando sostituisci l'utensile montato. L'utensile precedente e tutti i suoi parametri di taglio restano nello storico della stessa posizione. Il comando **Monta** riporta uno storico in posizione attiva e archivia automaticamente quello attualmente montato.
 
-## Esportazione
+## Calcoli e riutilizzo dei dati
+
+- **Calcola automaticamente** usa diametro, Vc, numero di taglienti e Fz per calcolare giri e avanzamento. Può anche ricavare Vc o Fz quando sono i valori mancanti.
+- **Duplica** copia l'utensile e i suoi materiali in un'altra posizione. Se la destinazione è occupata, il suo utensile viene prima conservato nello storico.
+- **Copia materiali** importa i parametri da un'altra posizione e aggiorna quelli con lo stesso nome.
+
+## Esportazione e ripristino
 
 - **Esporta PDF** genera un documento A4 completo con tutte le 30 posizioni, gli utensili montati, l'intero archivio e i parametri di taglio per materiale.
 - **Esporta JSON** genera una copia strutturata dei dati per il backup.
+- **Importa JSON** ripristina un backup dopo averlo controllato. Prima del ripristino viene sempre salvata automaticamente una copia dello stato corrente in `/data/backups`.
 
 I dati vengono salvati in `/data/cnc_tools.db` e sono inclusi nei backup dell'app.
 
