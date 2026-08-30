@@ -31,7 +31,7 @@ h1 { margin-bottom: .4rem; font-size: clamp(1.6rem,4vw,2.45rem); letter-spacing:
 .button.secondary { background: transparent; color: var(--text); border-color: var(--line); }
 .button.danger { background: transparent; color: #ff9b9b; border-color: #7f3838; margin-right: auto; }
 main { padding: 1.4rem clamp(1rem,4vw,4rem) 4rem; }
-.summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 1rem; margin-bottom: 1rem; }
+.summary { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 1rem; margin-bottom: 1rem; }
 .summary article { background: linear-gradient(145deg,var(--panel),var(--panel-2)); border: 1px solid var(--line); padding: 1rem 1.2rem; border-radius: 14px; display: flex; align-items: baseline; gap: .75rem; }
 .summary strong { font-size: 1.65rem; color: var(--accent-2); }
 .summary span { color: var(--muted); }
@@ -73,7 +73,7 @@ textarea { resize: vertical; }
 .empty-state { text-align: center; color: var(--muted); padding: 3rem; }
 dialog { width: min(920px,calc(100% - 1rem)); max-height: calc(100vh - 1rem); padding: 0; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: var(--text); box-shadow: 0 30px 90px #000; }
 dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
-#tool-form, .cutting-section, .history-section { padding: 1.25rem; }
+#tool-form, .cutting-section, .history-section, .attachments-section { padding: 1.25rem; }
 .dialog-head, .section-title { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--line); margin-bottom: 1rem; padding-bottom: .7rem; }
 .dialog-head h2, .section-title h3 { margin-bottom: 0; }
 .icon-button { border: 0; background: transparent; color: var(--muted); font-size: 2rem; line-height: 1; }
@@ -95,11 +95,19 @@ dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
 .empty-tool-icon { display: grid; place-items: center; font-size: 1.5rem; color: var(--muted); }
 .cutting-section, .history-section { background: #0f1821; border-top: 1px solid var(--line); }
 .history-section { background: #111b25; }
+.attachments-section { background: #101a23; border-top: 1px solid var(--line); }
+.attachment-help { margin-bottom: .8rem; }
+.attachment-list, .inventory-attachments { display: grid; gap: .5rem; }
+.attachment-row { display: flex; align-items: center; justify-content: space-between; gap: .7rem; padding: .6rem; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.attachment-row a { min-width: 0; color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
+.attachment-row small { display: block; color: var(--muted); margin-top: .15rem; }
+.file-button { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 .history-list { display: grid; gap: .6rem; }
 .history-row { display: grid; grid-template-columns: minmax(160px,1.5fr) repeat(3,minmax(55px,.6fr)) auto; gap: .65rem; align-items: center; border: 1px solid var(--line); background: var(--panel); padding: .75rem; border-radius: 10px; }
 .history-row.highlighted { border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(54,209,196,.16); }
 .history-row small { color: var(--muted); display: block; }
 .history-identity { display: flex; align-items: center; gap: .65rem; }
+.history-file { display: block; margin-top: .2rem; color: var(--accent-2); font-size: .72rem; text-decoration: none; overflow-wrap: anywhere; }
 .history-tool-icon { width: 40px; height: 40px; flex: 0 0 40px; color: var(--accent-2); background: rgba(24,169,153,.12); border-radius: 8px; padding: .3rem; }
 .cutting-list { display: grid; gap: .6rem; margin-bottom: 1rem; }
 .cutting-row { display: grid; grid-template-columns: minmax(120px,1.4fr) repeat(4,1fr) auto; gap: .65rem; align-items: center; border: 1px solid var(--line); background: var(--panel); padding: .7rem; border-radius: 10px; }
@@ -137,6 +145,21 @@ dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
 .label-info h3 { margin: .25rem 0; font-size: 1rem; }
 .label-info p { margin: 0 0 .3rem; font-size: .8rem; }
 .label-info span { font-size: .75rem; font-weight: 700; }
+.management-dialog { width: min(980px,calc(100% - 1rem)); }
+.management-content { padding: 1.25rem; }
+.compact-form { padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--line); border-radius: 12px; background: #0f1821; }
+.compact-form h3 { margin-bottom: .8rem; }
+.inventory-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .75rem; }
+.inventory-card { display: grid; gap: .7rem; padding: .85rem; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); }
+.inventory-card.highlighted { border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(54,209,196,.16); }
+.inventory-head { display: flex; align-items: center; gap: .65rem; }
+.inventory-head small { display: block; color: var(--muted); margin-top: .2rem; }
+.inventory-actions { margin-top: auto; flex-wrap: wrap; }
+.template-list, .events-list { display: grid; gap: .55rem; }
+.template-row { display: flex; align-items: center; justify-content: space-between; gap: .7rem; padding: .7rem; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); }
+.template-row small, .event-row small { display: block; color: var(--muted); margin-top: .2rem; }
+.event-row { display: flex; align-items: flex-start; gap: .7rem; padding: .75rem; border-bottom: 1px solid var(--line); }
+.event-dot { width: 10px; height: 10px; flex: 0 0 10px; margin-top: .3rem; border-radius: 50%; background: var(--accent-2); box-shadow: 0 0 0 4px rgba(54,209,196,.12); }
 .toast { position: fixed; right: 1rem; bottom: 1rem; max-width: min(380px,calc(100% - 2rem)); background: #14352f; border: 1px solid var(--accent); color: var(--text); padding: .85rem 1rem; border-radius: 10px; box-shadow: var(--shadow); transform: translateY(140%); transition: transform .2s; z-index: 20; }
 .toast.show { transform: translateY(0); }
 .toast.error { background: #3d1c1c; border-color: var(--danger); }
@@ -160,6 +183,8 @@ dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
   .usage-panel { align-items: stretch; flex-direction: column; }
   .usage-actions .button { flex: 1; }
   .label-sheet { grid-template-columns: 1fr; }
+  .inventory-list { grid-template-columns: 1fr; }
+  .attachment-row, .template-row { align-items: stretch; flex-direction: column; }
 }
 @media (max-width: 430px) {
   .tool-grid { grid-template-columns: 1fr; }

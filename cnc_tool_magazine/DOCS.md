@@ -20,9 +20,25 @@ Scegli lo stato tra **Nuovo**, **In uso**, **Da affilare**, **In manutenzione** 
 
 ## QR ed etichette
 
-Il pulsante **QR** nella scheda crea l'etichetta dell'utensile montato. **Etichette QR** nella schermata principale prepara gli utensili montati e archiviati e permette di mostrare anche tutti i 30 posti. Premi **Stampa etichette** per stampare o salvare il foglio in PDF.
+Il pulsante **QR** nella scheda crea l'etichetta dell'utensile montato. **Etichette QR** nella schermata principale prepara gli utensili montati, archiviati e presenti in Officina e permette di mostrare anche tutti i 30 posti. Premi **Stampa etichette** per stampare o salvare il foglio in PDF.
 
 Scansionando il QR si apre direttamente la scheda della posizione. Il telefono deve poter raggiungere lo stesso indirizzo di Home Assistant ed essere già autenticato.
+
+## Magazzino Officina e movimenti
+
+Apri **Officina** per registrare gli utensili disponibili ma non montati. Puoi aggiungere un nuovo utensile oppure usare **Metti in Officina** dalla scheda di una posizione. Con **Monta** scegli una posizione 1–30 senza ricreare i dati; se è occupata, l'utensile presente viene conservato automaticamente in Officina.
+
+Il comando **Sposta** trasferisce un utensile montato in un'altra posizione libera. La pagina **Movimenti** registra automaticamente creazione, montaggio, smontaggio, spostamento e archiviazione.
+
+## Libreria dei materiali
+
+La libreria include modelli iniziali modificabili per C45, acciaio inox, alluminio e ottone. Nel modulo dei parametri scegli un modello per compilare Vc, Fz, ap, ae e refrigerazione. I valori sono soltanto indicativi: devono essere controllati in base a utensile, materiale reale, macchina, serraggio e dati del produttore.
+
+## Documenti e fotografie
+
+Nella scheda dell'utensile usa **Aggiungi file** per allegare PDF, JPG, PNG, WEBP, HEIC o TXT fino a 10 MB. I documenti seguono l'utensile durante gli spostamenti, il passaggio in Officina e l'archiviazione.
+
+Il backup completo dell'add-on di Home Assistant include database e file allegati. L'esportazione JSON contiene i dati strutturati ma non incorpora il contenuto binario dei documenti.
 
 ## Calcoli e riutilizzo dei dati
 
