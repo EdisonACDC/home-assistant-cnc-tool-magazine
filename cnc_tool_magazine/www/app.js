@@ -1,6 +1,6 @@
 "use strict";
 
-const state = { tools: [], activeSlot: null, iconTarget: null };
+const state = { tools: [], inventory: [], templates: [], events: [], validation: {count:0,warnings:[],slots:[]}, visel: null, activeSlot: null, iconTarget: null };
 const grid = document.querySelector("#tool-grid");
 const dialog = document.querySelector("#tool-dialog");
 const toolForm = document.querySelector("#tool-form");
@@ -13,6 +13,20 @@ const iconDialog = document.querySelector("#icon-dialog");
 const iconGrid = document.querySelector("#icon-grid");
 const labelsDialog = document.querySelector("#labels-dialog");
 const labelSheet = document.querySelector("#label-sheet");
+const inventoryDialog = document.querySelector("#inventory-dialog");
+const inventoryForm = document.querySelector("#inventory-form");
+const inventoryList = document.querySelector("#inventory-list");
+const materialLibraryDialog = document.querySelector("#material-library-dialog");
+const templateForm = document.querySelector("#template-form");
+const templateList = document.querySelector("#template-list");
+const eventsDialog = document.querySelector("#events-dialog");
+const eventsList = document.querySelector("#events-list");
+const validationDialog = document.querySelector("#validation-dialog");
+const validationList = document.querySelector("#validation-list");
+const viselDialog = document.querySelector("#visel-dialog");
+const viselForm = document.querySelector("#visel-form");
+const inventoryFields = ["description","tool_type","icon","diameter_mm","length_mm","flutes","notes"];
+const templateFields = ["name","vc_m_min","fz_mm_tooth","ap_mm","ae_mm","coolant","notes"];
 const fields = ["t_number","d_offset","h_offset","diameter_mm","length_mm","description","tool_type","icon","flutes","status","usage_hours","life_hours","notes"];
 const cuttingFields = ["id","material","coolant","vc_m_min","rpm","fz_mm_tooth","feed_mm_min","ap_mm","ae_mm","notes"];
 const TOOL_ICONS = [
@@ -97,12 +111,14 @@ function render() {
 
 function toolCard(tool) {
   const occupied = isOccupied(tool);
+  const issues = state.validation.warnings.filter(item => item.slots.includes(tool.slot));
   const title = tool.description || "Posizione libera";
   const materials = tool.cutting_parameters.map(item => `<button class="chip material-chip show-material" data-id="${item.id}" type="button" aria-label="Apri parametri per ${esc(item.material)}">${esc(item.material)}</button>`).join("");
   const status = occupied ? (STATUS_LABELS[tool.status] || "In uso") : "Libero";
   const life = occupied && tool.remaining_percent !== null ? `<span class="life-meter"><i style="width:${tool.remaining_percent}%"></i></span><small>${tool.remaining_percent}% vita residua · ${formatHours(tool.usage_hours_current)}</small>` : "";
-  return `<article class="tool-card ${occupied ? "" : "free"}" data-slot="${tool.slot}" role="button" tabindex="0">
+  return `<article class="tool-card ${occupied ? "" : "free"} ${issues.length ? "warning" : ""}" data-slot="${tool.slot}" role="button" tabindex="0">
     <div class="card-head"><span class="slot">${tool.slot}</span><span class="status status-${esc(tool.status)}">${esc(status)}</span></div>
+    ${issues.length ? `<div class="warning-chip" title="${esc(issues.map(item => item.message).join(" · "))}">⚠ ${issues.length} ${issues.length === 1 ? "segnalazione" : "segnalazioni"}</div>` : ""}
     <div class="tool-title">${toolIcon(tool.icon, "card-tool-icon")}<h3>${esc(title)}</h3></div>
     <div class="offsets"><span>T<b>${esc(tool.t_number ?? "—")}</b></span><span>D<b>${esc(tool.d_offset ?? "—")}</b></span><span>H<b>${esc(tool.h_offset ?? "—")}</b></span></div>
     <p class="measure">Ø ${esc(tool.diameter_mm ?? "—")} mm · L ${esc(tool.length_mm ?? "—")} mm${tool.flutes ? ` · Z${esc(tool.flutes)}` : ""}</p>
@@ -148,16 +164,27 @@ function openMaterial(slot, materialId) {
 
 async function loadTools(showMessage = false) {
   try {
-    const data = await request("api/tools");
+    const [data, templateData, inventoryData, validationData] = await Promise.all([
+      request("api/tools"), request("api/material-templates"), request("api/inventory"), request("api/validation")
+    ]);
     state.tools = data.tools;
+    state.templates = templateData.templates;
+    state.inventory = inventoryData.inventory;
+    state.validation = validationData;
     document.querySelector("#machine-name").textContent = data.machine.machine_name;
+    renderTemplateSelect();
+    document.querySelector("#inventory-count").textContent = state.inventory.length;
+    document.querySelector("#validation-count").textContent = state.validation.count;
+    document.querySelector("#validation-badge").textContent = state.validation.count;
     render();
     if (!state.deepLinkOpened) {
       state.deepLinkOpened = true;
       const url = new URL(window.location.href);
       const slot = Number(url.searchParams.get("slot"));
       const historyId = Number(url.searchParams.get("history")) || null;
-      if (Number.isInteger(slot) && slot >= 1 && slot <= 30) openTool(slot, historyId);
+      const inventoryId = Number(url.searchParams.get("inventory")) || null;
+      if (inventoryId) openInventoryDeepLink(inventoryId);
+      else if (Number.isInteger(slot) && slot >= 1 && slot <= 30) openTool(slot, historyId);
     }
     if (showMessage) toast("Dati aggiornati");
   } catch (error) { toast(error.message, true); }
@@ -174,6 +201,7 @@ function openTool(slot, historyId = null) {
   renderCutting(tool);
   renderHistory(tool);
   renderUsage(tool);
+  renderAttachments(tool.attachments || []);
   dialog.showModal();
   if (historyId) {
     const archived = historyList.querySelector(`[data-id="${historyId}"]`);
@@ -206,15 +234,24 @@ function renderUsage(tool) {
 function renderHistory(tool) {
   historyList.innerHTML = tool.history.length ? tool.history.map(item => `
     <article class="history-row" data-id="${item.history_id}">
-      <div class="history-identity">${toolIcon(item.icon, "history-tool-icon")}<div><strong>${esc(item.description || item.tool_type || "Utensile senza descrizione")}</strong><small>Archiviato ${esc(new Date(item.archived_at).toLocaleString("it-IT"))} · ${esc(STATUS_LABELS[item.status] || "In uso")} · ${formatHours(item.usage_hours)}</small></div></div>
+      <div class="history-identity">${toolIcon(item.icon, "history-tool-icon")}<div><strong>${esc(item.description || item.tool_type || "Utensile senza descrizione")}</strong><small>Archiviato ${esc(new Date(item.archived_at).toLocaleString("it-IT"))} · ${esc(STATUS_LABELS[item.status] || "In uso")} · ${formatHours(item.usage_hours)}</small>${(item.attachments || []).map(file => `<a class="history-file" href="api/attachments/${file.id}" target="_blank" rel="noopener">📎 ${esc(file.original_name)}</a>`).join("")}</div></div>
       <div><small>T</small>${esc(item.t_number ?? "—")}</div>
       <div><small>D</small>${esc(item.d_offset ?? "—")}</div>
       <div><small>H</small>${esc(item.h_offset ?? "—")}</div>
-      <div class="row-actions"><button class="mini-button history-icon" type="button">Icona</button><button class="mini-button activate" type="button">Monta</button><button class="mini-button delete-history delete" type="button">Elimina</button></div>
+      <div class="row-actions"><button class="mini-button history-icon" type="button">Icona</button><label class="mini-button file-button">Allega<input class="history-attachment-file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,text/plain" hidden></label><button class="mini-button activate" type="button">Monta</button><button class="mini-button delete-history delete" type="button">Elimina</button></div>
     </article>`).join("") : `<p class="subtitle">Nessun utensile nello storico di questa posizione.</p>`;
   historyList.querySelectorAll(".activate").forEach(button => button.addEventListener("click", () => activateHistory(Number(button.closest("article").dataset.id))));
   historyList.querySelectorAll(".history-icon").forEach(button => button.addEventListener("click", () => openIconPicker("history", Number(button.closest("article").dataset.id))));
   historyList.querySelectorAll(".delete-history").forEach(button => button.addEventListener("click", () => removeHistory(Number(button.closest("article").dataset.id))));
+  historyList.querySelectorAll(".history-attachment-file").forEach(input => input.addEventListener("change", async event => {
+    const historyId = Number(input.closest("article").dataset.id);
+    try {
+      await uploadAttachment(`api/tools/${state.activeSlot}/history/${historyId}/attachments`, event.target.files[0]);
+      await loadTools();
+      openRefresh();
+      toast("Documento allegato allo storico");
+    } catch (error) { toast(error.message, true); }
+  }));
 }
 
 function renderCutting(tool) {
@@ -240,7 +277,23 @@ function editCutting(id) {
 function clearCutting() {
   cuttingForm.reset();
   cuttingForm.elements.id.value = "";
+  document.querySelector("#material-template").value = "";
 }
+
+function renderTemplateSelect() {
+  const select = document.querySelector("#material-template");
+  const current = select.value;
+  select.innerHTML = `<option value="">Inserimento manuale</option>${state.templates.map(item => `<option value="${item.id}">${esc(item.name)}</option>`).join("")}`;
+  if ([...select.options].some(option => option.value === current)) select.value = current;
+}
+
+document.querySelector("#material-template").addEventListener("change", event => {
+  const template = state.templates.find(item => item.id === Number(event.target.value));
+  if (!template) return;
+  const mapping = {material:"name", vc_m_min:"vc_m_min", fz_mm_tooth:"fz_mm_tooth", ap_mm:"ap_mm", ae_mm:"ae_mm", coolant:"coolant", notes:"notes"};
+  Object.entries(mapping).forEach(([field, source]) => { cuttingForm.elements[field].value = template[source] ?? ""; });
+  toast("Valori proposti dalla libreria: controllali prima di salvarli");
+});
 
 function formData(form, names) {
   return Object.fromEntries(names.filter(name => name !== "id").map(name => [name, form.elements[name].value]));
@@ -321,6 +374,7 @@ function openRefresh() {
   renderCutting(tool);
   renderHistory(tool);
   renderUsage(tool);
+  renderAttachments(tool.attachments || []);
 }
 
 document.querySelector("#start-usage").addEventListener("click", async () => {
@@ -371,6 +425,56 @@ async function removeHistory(id) {
   } catch (error) { toast(error.message, true); }
 }
 
+function fileSize(size) {
+  return size >= 1_000_000 ? `${(size / 1_000_000).toFixed(1)} MB` : `${Math.max(1, Math.round(size / 1000))} KB`;
+}
+
+function attachmentMarkup(items) {
+  return items.length ? items.map(item => `
+    <article class="attachment-row" data-id="${item.id}">
+      <a href="api/attachments/${item.id}" target="_blank" rel="noopener"><strong>${esc(item.original_name)}</strong><small>${esc(item.mime_type)} · ${fileSize(item.size)}</small></a>
+      <button class="mini-button delete delete-attachment" type="button">Elimina</button>
+    </article>`).join("") : `<p class="subtitle">Nessun documento allegato.</p>`;
+}
+
+function renderAttachments(items) {
+  document.querySelector("#attachment-list").innerHTML = attachmentMarkup(items);
+  document.querySelector("#attachment-list").querySelectorAll(".delete-attachment").forEach(button => button.addEventListener("click", async () => {
+    if (!confirm("Eliminare definitivamente questo allegato?")) return;
+    try {
+      await request(`api/attachments/${button.closest("article").dataset.id}`, {method:"DELETE"});
+      await loadTools();
+      openRefresh();
+      toast("Allegato eliminato");
+    } catch (error) { toast(error.message, true); }
+  }));
+}
+
+async function uploadAttachment(url, file) {
+  if (!file) return;
+  if (file.size > 10_000_000) throw new Error("Il file supera il limite di 10 MB");
+  const response = await fetch(url, {
+    method:"POST",
+    headers:{"X-File-Name":encodeURIComponent(file.name), "X-File-Type":file.type || "application/octet-stream"},
+    body:file
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `Errore HTTP ${response.status}`);
+  return data;
+}
+
+document.querySelector("#attachment-file").addEventListener("change", async event => {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    await uploadAttachment(`api/tools/${state.activeSlot}/attachments`, file);
+    await loadTools();
+    openRefresh();
+    toast("Documento allegato");
+  } catch (error) { toast(error.message, true); }
+  event.target.value = "";
+});
+
 document.querySelector("#reset-tool").addEventListener("click", async () => {
   if (!confirm(`Svuotare completamente la posizione ${state.activeSlot}?`)) return;
   try {
@@ -398,6 +502,37 @@ document.querySelector("#duplicate-tool").addEventListener("click", async () => 
     await request(`api/tools/${state.activeSlot}/duplicate`, {method:"POST", body:JSON.stringify({target_slot:target})});
     await loadTools();
     toast(`Utensile duplicato nella posizione ${target}`);
+  } catch (error) { toast(error.message, true); }
+});
+
+document.querySelector("#move-tool").addEventListener("click", async () => {
+  const value = prompt(`In quale posizione libera vuoi spostare l'utensile del posto ${state.activeSlot}?`);
+  if (value === null) return;
+  const target = Number(value);
+  if (!Number.isInteger(target) || target < 1 || target > 30 || target === state.activeSlot) {
+    toast("Scegli una posizione diversa, compresa tra 1 e 30", true);
+    return;
+  }
+  if (isOccupied(state.tools.find(tool => tool.slot === target))) {
+    toast("La posizione di destinazione deve essere libera", true);
+    return;
+  }
+  if (!confirm(`Spostare l'utensile dalla posizione ${state.activeSlot} alla ${target}?`)) return;
+  try {
+    await request(`api/tools/${state.activeSlot}/move`, {method:"POST", body:JSON.stringify({target_slot:target})});
+    await loadTools();
+    dialog.close();
+    toast(`Utensile spostato nella posizione ${target}`);
+  } catch (error) { toast(error.message, true); }
+});
+
+document.querySelector("#to-inventory").addEventListener("click", async () => {
+  if (!confirm(`Smontare l'utensile del posto ${state.activeSlot} e conservarlo nel magazzino Officina?`)) return;
+  try {
+    await request(`api/tools/${state.activeSlot}/inventory`, {method:"POST"});
+    await loadTools();
+    dialog.close();
+    toast("Utensile spostato in Officina");
   } catch (error) { toast(error.message, true); }
 });
 
@@ -472,33 +607,35 @@ importFile.addEventListener("change", async () => {
   } catch (error) { toast(`Importazione non riuscita: ${error.message}`, true); }
 });
 
-function toolDeepLink(slot, historyId = null) {
+function toolDeepLink(slot = null, historyId = null, inventoryId = null) {
   const url = new URL(window.location.href);
   url.search = "";
   url.hash = "";
-  url.searchParams.set("slot", slot);
+  if (slot) url.searchParams.set("slot", slot);
   if (historyId) url.searchParams.set("history", historyId);
+  if (inventoryId) url.searchParams.set("inventory", inventoryId);
   return url.href;
 }
 
-function qrSource(slot, historyId = null) {
-  return `api/tools/${slot}/qr.svg?target=${encodeURIComponent(toolDeepLink(slot, historyId))}`;
+function qrSource(slot = null, historyId = null, inventoryId = null) {
+  return `api/qr.svg?target=${encodeURIComponent(toolDeepLink(slot, historyId, inventoryId))}`;
 }
 
 function labelEntries(includeFree = false, singleSlot = null) {
   const entries = [];
   state.tools.forEach(tool => {
-    if ((!singleSlot || tool.slot === singleSlot) && (includeFree || isOccupied(tool))) entries.push({...tool, label_slot:tool.slot, label_history:null});
-    if (!singleSlot) tool.history.forEach(item => entries.push({...item, label_slot:tool.slot, label_history:item.history_id}));
+    if ((!singleSlot || tool.slot === singleSlot) && (includeFree || isOccupied(tool))) entries.push({...tool, label_slot:tool.slot, label_history:null, label_inventory:null});
+    if (!singleSlot) tool.history.forEach(item => entries.push({...item, label_slot:tool.slot, label_history:item.history_id, label_inventory:null}));
   });
+  if (!singleSlot) state.inventory.forEach(item => entries.push({...item, label_slot:null, label_history:null, label_inventory:item.inventory_id}));
   return entries;
 }
 
 function renderLabels(tools) {
   labelSheet.innerHTML = tools.map(tool => `
     <article class="tool-label">
-      <img src="${qrSource(tool.label_slot, tool.label_history)}" alt="QR utensile posizione ${tool.label_slot}">
-      <div class="label-info"><strong>POSTO ${tool.label_slot}${tool.label_history ? " · ARCHIVIO" : ""}</strong><h3>${esc(tool.description || tool.tool_type || "Posizione libera")}</h3><p>T${esc(tool.t_number ?? "—")} · D${esc(tool.d_offset ?? "—")} · H${esc(tool.h_offset ?? "—")}</p><span>${esc(isOccupied({...tool, cutting_parameters:tool.cutting_parameters || []}) ? (STATUS_LABELS[tool.status] || "In uso") : "Libero")}</span></div>
+      <img src="${qrSource(tool.label_slot, tool.label_history, tool.label_inventory)}" alt="QR utensile ${tool.label_slot ? `posizione ${tool.label_slot}` : "Officina"}">
+      <div class="label-info"><strong>${tool.label_inventory ? "OFFICINA" : `POSTO ${tool.label_slot}${tool.label_history ? " · ARCHIVIO" : ""}`}</strong><h3>${esc(tool.description || tool.tool_type || "Posizione libera")}</h3><p>T${esc(tool.t_number ?? "—")} · D${esc(tool.d_offset ?? "—")} · H${esc(tool.h_offset ?? "—")}</p><span>${esc(isOccupied({...tool, cutting_parameters:tool.cutting_parameters || []}) ? (STATUS_LABELS[tool.status] || "In uso") : "Libero")}</span></div>
     </article>`).join("");
 }
 
@@ -518,6 +655,174 @@ document.querySelector("#show-all-labels").addEventListener("click", () => {
 document.querySelector("#print-labels").addEventListener("click", () => window.print());
 document.querySelector("#close-labels-dialog").addEventListener("click", () => labelsDialog.close());
 labelsDialog.addEventListener("click", event => { if (event.target === labelsDialog) labelsDialog.close(); });
+
+document.querySelector("#inventory-icon-select").innerHTML = `<option value="">Nessuna icona</option>${TOOL_ICONS.map(item => `<option value="${item.id}">${esc(item.label)}</option>`).join("")}`;
+
+async function loadInventory() {
+  const data = await request("api/inventory");
+  state.inventory = data.inventory;
+  renderInventory();
+}
+
+function openInventoryDeepLink(id) {
+  renderInventory();
+  inventoryDialog.showModal();
+  const card = inventoryList.querySelector(`[data-id="${id}"]`);
+  if (card) {
+    card.classList.add("highlighted");
+    setTimeout(() => card.scrollIntoView({behavior:"smooth", block:"center"}), 100);
+  }
+}
+
+function renderInventory() {
+  inventoryList.innerHTML = state.inventory.length ? state.inventory.map(tool => `
+    <article class="inventory-card" data-id="${tool.inventory_id}">
+      <div class="inventory-head">${toolIcon(tool.icon, "history-tool-icon")}<div><strong>${esc(tool.description || tool.tool_type)}</strong><small>${esc(tool.tool_type || "Tipo non indicato")} · Ø ${esc(tool.diameter_mm ?? "—")} mm · Z${esc(tool.flutes ?? "—")}</small></div></div>
+      <div class="material-chips">${(tool.cutting_parameters || []).map(item => `<span class="chip">${esc(item.material)}</span>`).join("")}</div>
+      <div class="inventory-attachments">${attachmentMarkup(tool.attachments || [])}</div>
+      <div class="row-actions inventory-actions"><button class="mini-button mount-inventory" type="button">Monta</button><label class="mini-button file-button">Allega<input class="inventory-file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,text/plain" hidden></label><button class="mini-button delete delete-inventory" type="button">Elimina</button></div>
+    </article>`).join("") : `<p class="subtitle">Non ci sono utensili nel magazzino Officina.</p>`;
+  inventoryList.querySelectorAll(".mount-inventory").forEach(button => button.addEventListener("click", () => mountInventory(Number(button.closest("article").dataset.id))));
+  inventoryList.querySelectorAll(".delete-inventory").forEach(button => button.addEventListener("click", () => removeInventory(Number(button.closest("article").dataset.id))));
+  inventoryList.querySelectorAll(".inventory-file").forEach(input => input.addEventListener("change", async event => {
+    const id = Number(input.closest("article").dataset.id);
+    try {
+      await uploadAttachment(`api/inventory/${id}/attachments`, event.target.files[0]);
+      await loadInventory();
+      toast("Documento allegato");
+    } catch (error) { toast(error.message, true); }
+  }));
+  inventoryList.querySelectorAll(".delete-attachment").forEach(button => button.addEventListener("click", async () => {
+    if (!confirm("Eliminare definitivamente questo allegato?")) return;
+    try {
+      await request(`api/attachments/${button.closest("article").dataset.id}`, {method:"DELETE"});
+      await loadInventory();
+      toast("Allegato eliminato");
+    } catch (error) { toast(error.message, true); }
+  }));
+}
+
+async function mountInventory(id) {
+  const value = prompt("In quale posizione vuoi montare l'utensile? Inserisci un numero da 1 a 30.");
+  if (value === null) return;
+  const target = Number(value);
+  if (!Number.isInteger(target) || target < 1 || target > 30) return toast("Posizione non valida", true);
+  const occupied = isOccupied(state.tools.find(tool => tool.slot === target));
+  if (!confirm(occupied
+    ? `La posizione ${target} è occupata. L'utensile presente verrà spostato in Officina. Continuare?`
+    : `Montare l'utensile nella posizione ${target}?`)) return;
+  try {
+    await request(`api/inventory/${id}/mount`, {method:"POST", body:JSON.stringify({target_slot:target})});
+    await Promise.all([loadTools(), loadInventory()]);
+    toast(`Utensile montato nella posizione ${target}`);
+  } catch (error) { toast(error.message, true); }
+}
+
+async function removeInventory(id) {
+  if (!confirm("Eliminare definitivamente questo utensile dall'Officina?")) return;
+  try {
+    await request(`api/inventory/${id}`, {method:"DELETE"});
+    await loadInventory();
+    toast("Utensile rimosso");
+  } catch (error) { toast(error.message, true); }
+}
+
+inventoryForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  try {
+    await request("api/inventory", {method:"POST", body:JSON.stringify(formData(inventoryForm, inventoryFields))});
+    inventoryForm.reset();
+    await loadInventory();
+    toast("Utensile aggiunto in Officina");
+  } catch (error) { toast(error.message, true); }
+});
+
+document.querySelector("#inventory-button").addEventListener("click", async () => {
+  try { await loadInventory(); inventoryDialog.showModal(); } catch (error) { toast(error.message, true); }
+});
+document.querySelector("#close-inventory-dialog").addEventListener("click", () => inventoryDialog.close());
+
+function clearTemplateForm() {
+  templateForm.reset();
+  templateForm.elements.id.value = "";
+}
+
+function renderTemplateList() {
+  templateList.innerHTML = state.templates.map(item => `
+    <article class="template-row" data-id="${item.id}"><div><strong>${esc(item.name)}</strong><small>Vc ${esc(item.vc_m_min ?? "—")} · Fz ${esc(item.fz_mm_tooth ?? "—")} · ap ${esc(item.ap_mm ?? "—")} · ae ${esc(item.ae_mm ?? "—")}</small></div><div class="row-actions"><button class="mini-button edit-template" type="button">Modifica</button><button class="mini-button delete delete-template" type="button">Elimina</button></div></article>`).join("");
+  templateList.querySelectorAll(".edit-template").forEach(button => button.addEventListener("click", () => {
+    const item = state.templates.find(value => value.id === Number(button.closest("article").dataset.id));
+    templateForm.elements.id.value = item.id;
+    templateFields.forEach(field => { templateForm.elements[field].value = item[field] ?? ""; });
+    templateForm.elements.name.focus();
+  }));
+  templateList.querySelectorAll(".delete-template").forEach(button => button.addEventListener("click", async () => {
+    if (!confirm("Eliminare questo modello materiale?")) return;
+    try {
+      await request(`api/material-templates/${button.closest("article").dataset.id}`, {method:"DELETE"});
+      await loadTools();
+      renderTemplateList();
+      toast("Modello eliminato");
+    } catch (error) { toast(error.message, true); }
+  }));
+}
+
+templateForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const id = templateForm.elements.id.value;
+  try {
+    await request(id ? `api/material-templates/${id}` : "api/material-templates", {method:id ? "PUT" : "POST", body:JSON.stringify(formData(templateForm, templateFields))});
+    await loadTools();
+    clearTemplateForm();
+    renderTemplateList();
+    toast("Modello materiale salvato");
+  } catch (error) { toast(error.message, true); }
+});
+
+document.querySelector("#materials-library-button").addEventListener("click", () => { renderTemplateList(); materialLibraryDialog.showModal(); });
+document.querySelector("#clear-template").addEventListener("click", clearTemplateForm);
+document.querySelector("#close-material-library-dialog").addEventListener("click", () => materialLibraryDialog.close());
+
+document.querySelector("#events-button").addEventListener("click", async () => {
+  try {
+    const data = await request("api/events");
+    state.events = data.events;
+    eventsList.innerHTML = state.events.length ? state.events.map(item => `<article class="event-row"><span class="event-dot"></span><div><strong>${esc(item.description)}</strong><small>${esc(new Date(item.created_at).toLocaleString("it-IT"))}</small></div></article>`).join("") : `<p class="subtitle">Nessun movimento registrato.</p>`;
+    eventsDialog.showModal();
+  } catch (error) { toast(error.message, true); }
+});
+document.querySelector("#close-events-dialog").addEventListener("click", () => eventsDialog.close());
+
+function renderValidation() {
+  validationList.innerHTML = state.validation.warnings.length ? state.validation.warnings.map(item => `
+    <button class="validation-row" type="button" data-slot="${item.slots[0]}">
+      <span class="validation-icon">⚠</span><span><strong>${esc(item.message)}</strong><small>Apri la posizione ${item.slots[0]} per correggere il dato</small></span>
+    </button>`).join("") : `<div class="validation-ok"><strong>✓ Nessuna segnalazione</strong><p>I numeri T, i correttori D/H e i diametri risultano coerenti.</p></div>`;
+  validationList.querySelectorAll(".validation-row").forEach(button => button.addEventListener("click", () => {
+    validationDialog.close();
+    openTool(Number(button.dataset.slot));
+  }));
+}
+
+document.querySelector("#validation-button").addEventListener("click", () => { renderValidation(); validationDialog.showModal(); });
+document.querySelector("#close-validation-dialog").addEventListener("click", () => validationDialog.close());
+
+document.querySelector("#visel-button").addEventListener("click", async () => {
+  try {
+    state.visel = await request("api/visel");
+    ["controller_model","software_version","host","connection_type","notes"].forEach(field => { viselForm.elements[field].value = state.visel[field] ?? ""; });
+    viselDialog.showModal();
+  } catch (error) { toast(error.message, true); }
+});
+viselForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const payload = Object.fromEntries(new FormData(viselForm).entries());
+  try {
+    state.visel = await request("api/visel", {method:"PUT", body:JSON.stringify(payload)});
+    toast("Preparazione Visel salvata · nessun comando inviato");
+  } catch (error) { toast(error.message, true); }
+});
+document.querySelector("#close-visel-dialog").addEventListener("click", () => viselDialog.close());
 
 document.querySelector("#export-button").addEventListener("click", async () => {
   try {

@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.1.0
+
+- Controlli automatici per numeri T duplicati, correttori D/H duplicati e diametri mancanti.
+- Evidenziazione delle posizioni coinvolte e apertura diretta della scheda dall'elenco delle segnalazioni.
+- Nuova sezione preparatoria Visel per salvare modello, versione, host, collegamento previsto e note tecniche.
+- Integrazione Visel mantenuta in modalità sicura: nessun comando viene inviato alla macchina senza un protocollo verificato.
+
+## 1.0.0
+
+- Nuovo magazzino **Officina** per utensili disponibili ma non montati nei 30 posti.
+- Montaggio diretto dall'Officina; l'eventuale utensile sostituito viene conservato automaticamente in Officina.
+- Spostamento diretto di un utensile montato verso un'altra posizione libera.
+- Registro automatico degli eventi: creazione, montaggio, smontaggio, spostamento e archiviazione.
+- Libreria materiali modificabile con modelli iniziali per C45, inox, alluminio e ottone.
+- Applicazione rapida dei valori Vc, Fz, ap, ae e refrigerazione mantenendo tutti i campi modificabili.
+- Allegati tecnici per utensile: PDF, immagini, fotografie iPhone e file di testo fino a 10 MB.
+- Documenti collegati all'identità dell'utensile e conservati durante spostamenti, archiviazione e passaggio in Officina.
+- PDF completo esteso con Officina, libreria materiali, documenti e registro movimenti.
+- Backup JSON esteso a Officina, modelli ed eventi; i file allegati restano inclusi nel backup dell'add-on di Home Assistant.
+
 ## 0.9.0
 
 - QR generato localmente per ogni posizione e apertura diretta della relativa scheda dal telefono.
