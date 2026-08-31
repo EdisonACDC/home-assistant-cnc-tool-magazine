@@ -16,6 +16,8 @@ Ogni scheda numerata rappresenta la stessa posizione fisica nel magazzino della 
 
 La barra **Cerca in tutto il magazzino**, all'inizio della pagina, controlla contemporaneamente utensili montati, storico, Officina, libreria materiali e nomi dei documenti allegati. Puoi cercare descrizioni, tipi, numeri T/D/H, diametri, note, materiali e parametri di taglio. Ogni risultato indica dove si trova l'elemento, mostra per ogni materiale Vc, S, Fz, F, ap, ae e refrigerazione, e apre direttamente la scheda corrispondente.
 
+Quando scegli una **Icona utensile**, il campo **Tipo utensile** viene compilato automaticamente con il nome dell'icona. La proposta funziona sia nella scheda di una posizione sia durante la creazione in Officina e può essere modificata manualmente prima del salvataggio.
+
 La versione attuale cerca il nome degli allegati, non il testo contenuto all'interno dei PDF o delle fotografie.
 
 Usa **Archivia e inserisci nuovo** quando sostituisci l'utensile montato. L'utensile precedente e tutti i suoi parametri di taglio restano nello storico della stessa posizione. Il comando **Monta** riporta uno storico in posizione attiva e archivia automaticamente quello attualmente montato.

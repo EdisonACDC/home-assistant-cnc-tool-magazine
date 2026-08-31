@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.4
+
+- La scelta dell'icona compila automaticamente il campo **Tipo utensile** con il nome corrispondente.
+- La compilazione automatica funziona sia per gli utensili montati sia durante la creazione in Officina.
+- Il tipo proposto resta modificabile manualmente prima del salvataggio.
+
 ## 1.2.3
 
 - **Svuota posizione** trasferisce automaticamente l'utensile nel magazzino Officina.
