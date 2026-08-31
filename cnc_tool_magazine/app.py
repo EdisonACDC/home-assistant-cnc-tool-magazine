@@ -618,6 +618,7 @@ def global_search(query: str) -> list[dict]:
             results.append({
                 "type": "active", "title": tool.get("description") or tool.get("tool_type") or "Utensile montato",
                 "location": f"Posto {tool['slot']}", "detail": tool_detail(tool), "slot": tool["slot"],
+                "cutting_parameters": tool.get("cutting_parameters", []),
             })
         for archived in tool.get("history", []):
             if needle in searchable_tool(archived):
@@ -625,6 +626,7 @@ def global_search(query: str) -> list[dict]:
                     "type": "history", "title": archived.get("description") or archived.get("tool_type") or "Utensile archiviato",
                     "location": f"Storico · posto {tool['slot']}", "detail": tool_detail(archived),
                     "slot": tool["slot"], "history_id": archived["history_id"],
+                    "cutting_parameters": archived.get("cutting_parameters", []),
                 })
         tool_groups = [("active", tool)] + [("history", item) for item in tool.get("history", [])]
         for kind, item in tool_groups:
@@ -635,12 +637,14 @@ def global_search(query: str) -> list[dict]:
                         "location": f"Documento · {'posto' if kind == 'active' else 'storico posto'} {tool['slot']}",
                         "detail": item.get("description") or item.get("tool_type") or "Utensile",
                         "slot": tool["slot"], "history_id": item.get("history_id"), "attachment_id": attachment["id"],
+                        "cutting_parameters": item.get("cutting_parameters", []),
                     })
     for tool in list_inventory():
         if needle in searchable_tool(tool):
             results.append({
                 "type": "inventory", "title": tool.get("description") or tool.get("tool_type") or "Utensile",
                 "location": "Officina", "detail": tool_detail(tool), "inventory_id": tool["inventory_id"],
+                "cutting_parameters": tool.get("cutting_parameters", []),
             })
         for attachment in tool.get("attachments", []):
             if needle in attachment.get("original_name", "").casefold():
@@ -648,6 +652,7 @@ def global_search(query: str) -> list[dict]:
                     "type": "document", "title": attachment["original_name"], "location": "Documento · Officina",
                     "detail": tool.get("description") or tool.get("tool_type") or "Utensile",
                     "inventory_id": tool["inventory_id"], "attachment_id": attachment["id"],
+                    "cutting_parameters": tool.get("cutting_parameters", []),
                 })
     for template in list_material_templates():
         text = " ".join(str(template.get(field) or "") for field in (

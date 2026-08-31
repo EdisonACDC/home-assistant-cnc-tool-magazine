@@ -268,13 +268,13 @@ class DatabaseTests(unittest.TestCase):
     def test_visel_settings_are_persistent_and_safe(self):
         saved = app.save_visel_settings({
             "controller_model": "PentaMac 30", "software_version": "4.2",
-            "host": "192.168.1.50", "connection_type": "network_unknown", "notes": "Porta da verificare",
+            "host": "visel.example.test", "connection_type": "network_unknown", "notes": "Porta da verificare",
         })
         self.assertEqual("PentaMac 30", saved["controller_model"])
         self.assertEqual("configuration_saved", saved["state"])
         self.assertFalse(saved["connected"])
         self.assertTrue(saved["safe_mode"])
-        self.assertEqual("192.168.1.50", app.get_visel_settings()["host"])
+        self.assertEqual("visel.example.test", app.get_visel_settings()["host"])
 
     def test_global_search_covers_all_magazine_sections(self):
         app.update_tool(3, {"description": "Fresa montata speciale", "diameter_mm": 10, "t_number": 41})
@@ -287,7 +287,8 @@ class DatabaseTests(unittest.TestCase):
         app.save_material_template({"name": "Bronzo ricerca", "vc_m_min": 120})
 
         self.assertEqual("active", app.global_search("T41")[0]["type"])
-        self.assertTrue(any(item["type"] == "active" for item in app.global_search("Titanio ricerca")))
+        active = next(item for item in app.global_search("Titanio ricerca") if item["type"] == "active")
+        self.assertEqual("Titanio ricerca", active["cutting_parameters"][0]["material"])
         self.assertTrue(any(item["type"] == "history" for item in app.global_search("Punta storica ricerca")))
         self.assertTrue(any(item["type"] == "document" for item in app.global_search("catalogo-ricerca")))
         workshop = app.global_search("Alesatore Officina ricerca")

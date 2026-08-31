@@ -50,6 +50,11 @@ main { padding: 1.4rem clamp(1rem,4vw,4rem) 4rem; }
 .search-result-type { min-width: 72px; padding: .25rem .45rem; border-radius: 99px; background: #203141; color: var(--accent-2); font-size: .68rem; font-weight: 800; text-align: center; }
 .type-history { color: #c8b1ff; }.type-inventory { color: #ffd27d; }.type-material { color: #7ff0c5; }.type-document { color: #7ee7ff; }
 .search-result-body { min-width: 0; }.search-result-body strong, .search-result-body small { display: block; overflow-wrap: anywhere; }.search-result-body small { margin-top: .2rem; color: var(--muted); }
+.search-cutting { display: grid; gap: .35rem; margin-top: .55rem; }
+.search-cutting-material { display: grid; gap: .12rem; padding: .45rem .55rem; border: 1px solid rgba(54,209,196,.2); border-radius: 7px; background: rgba(24,169,153,.08); }
+.search-cutting-material b { color: var(--accent-2); font-size: .76rem; }
+.search-cutting-material > span { color: #c8d3dc; font-size: .72rem; line-height: 1.45; overflow-wrap: anywhere; }
+.search-cutting-empty { display: block; margin-top: .45rem; color: var(--muted); font-size: .72rem; font-style: italic; }
 .search-result-arrow { color: var(--accent-2); font-size: 1.7rem; }
 .search-loading, .search-no-results { margin: 0; padding: 1rem; color: var(--muted); }.search-no-results p { margin: .3rem 0 0; }
 .summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(170px,1fr)); gap: 1rem; margin-bottom: 1rem; }
