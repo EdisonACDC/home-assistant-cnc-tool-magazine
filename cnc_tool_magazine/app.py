@@ -40,6 +40,7 @@ TOOL_FIELDS = {
     "length_mm",
     "description",
     "tool_type",
+    "thread_pitch_mm",
     "flutes",
     "notes",
     "status",
@@ -61,12 +62,14 @@ TOOL_ICONS = {
     "drill",
     "center_drill",
     "tap",
+    "thread_comb",
     "reamer",
     "boring_bar",
     "engraving",
     "probe",
     "custom",
 }
+TOOL_ICON_FILES = {"thread_comb": "tap"}
 CUTTING_FIELDS = {
     "material",
     "vc_m_min",
@@ -103,12 +106,12 @@ def _pdf_text(value: object, suffix: str = "") -> str:
 
 
 def _tool_is_occupied(tool: dict) -> bool:
-    fields = ("description", "tool_type", "icon", "diameter_mm", "length_mm", "flutes", "notes")
+    fields = ("description", "tool_type", "icon", "diameter_mm", "length_mm", "thread_pitch_mm", "flutes", "notes")
     return any(tool.get(field) not in (None, "") for field in fields) or bool(tool.get("cutting_parameters"))
 
 
 def _tool_icon(icon_name: str) -> Image | str:
-    path = WWW_DIR / "tool-icons" / f"{icon_name}.png"
+    path = WWW_DIR / "tool-icons" / f"{TOOL_ICON_FILES.get(icon_name, icon_name)}.png"
     if icon_name and path.is_file():
         return Image(str(path), width=15 * mm, height=15 * mm, kind="proportional")
     return ""
@@ -218,7 +221,7 @@ def build_pdf_report(
             _tool_icon(tool.get("icon", "")),
             Paragraph(f"<b>{_pdf_text(tool.get('description') or tool.get('tool_type') or 'Utensile senza descrizione')}</b>", body),
             Paragraph(f"<b>T:</b> {_pdf_text(tool.get('t_number'))}<br/><b>D:</b> {_pdf_text(tool.get('d_offset'))}<br/><b>H:</b> {_pdf_text(tool.get('h_offset'))}", body),
-            Paragraph(f"<b>Diametro:</b> {_pdf_text(tool.get('diameter_mm'), ' mm')}<br/><b>Lunghezza:</b> {_pdf_text(tool.get('length_mm'), ' mm')}<br/><b>Taglienti:</b> {_pdf_text(tool.get('flutes'))}", body),
+            Paragraph(f"<b>Diametro:</b> {_pdf_text(tool.get('diameter_mm'), ' mm')}<br/><b>Lunghezza:</b> {_pdf_text(tool.get('length_mm'), ' mm')}<br/><b>Passo:</b> {_pdf_text(tool.get('thread_pitch_mm'), ' mm')}<br/><b>Taglienti:</b> {_pdf_text(tool.get('flutes'))}", body),
             Paragraph(
                 f"<b>Tipo:</b> {_pdf_text(tool.get('tool_type'))}<br/>"
                 f"<b>Stato:</b> {_pdf_text(STATUS_LABELS.get(tool.get('status')))}<br/>"
@@ -353,6 +356,7 @@ def init_db(slot_count: int = 30) -> None:
                 description TEXT NOT NULL DEFAULT '',
                 tool_type TEXT NOT NULL DEFAULT '',
                 icon TEXT NOT NULL DEFAULT '',
+                thread_pitch_mm REAL,
                 flutes INTEGER,
                 notes TEXT NOT NULL DEFAULT '',
                 status TEXT NOT NULL DEFAULT 'in_use',
@@ -451,6 +455,8 @@ def init_db(slot_count: int = 30) -> None:
             db.execute("ALTER TABLE tools ADD COLUMN timer_started_at TEXT")
         if "tool_uid" not in columns:
             db.execute("ALTER TABLE tools ADD COLUMN tool_uid TEXT")
+        if "thread_pitch_mm" not in columns:
+            db.execute("ALTER TABLE tools ADD COLUMN thread_pitch_mm REAL")
         db.executemany(
             "INSERT OR IGNORE INTO tools(slot, t_number, d_offset, h_offset) VALUES (?, ?, ?, ?)",
             ((slot, slot, slot, slot) for slot in range(1, slot_count + 1)),
@@ -458,7 +464,7 @@ def init_db(slot_count: int = 30) -> None:
         occupied_rows = db.execute(
             """SELECT slot FROM tools WHERE tool_uid IS NULL AND
                (description != '' OR tool_type != '' OR icon != '' OR diameter_mm IS NOT NULL OR
-                length_mm IS NOT NULL OR flutes IS NOT NULL OR notes != '' OR
+                length_mm IS NOT NULL OR thread_pitch_mm IS NOT NULL OR flutes IS NOT NULL OR notes != '' OR
                 EXISTS(SELECT 1 FROM cutting_parameters c WHERE c.slot = tools.slot))"""
         ).fetchall()
         for row in occupied_rows:
@@ -595,7 +601,7 @@ def global_search(query: str) -> list[dict]:
     def searchable_tool(tool: dict) -> str:
         values = [
             tool.get("description"), tool.get("tool_type"), tool.get("notes"), tool.get("icon"),
-            tool.get("diameter_mm"), tool.get("length_mm"), tool.get("flutes"),
+            tool.get("diameter_mm"), tool.get("length_mm"), tool.get("thread_pitch_mm"), tool.get("flutes"),
             f"T{tool.get('t_number')}" if tool.get("t_number") is not None else "",
             f"D{tool.get('d_offset')}" if tool.get("d_offset") is not None else "",
             f"H{tool.get('h_offset')}" if tool.get("h_offset") is not None else "",
@@ -607,9 +613,10 @@ def global_search(query: str) -> list[dict]:
         return " ".join(str(value) for value in values if value not in (None, "")).casefold()
 
     def tool_detail(tool: dict) -> str:
+        pitch = f" · P {tool['thread_pitch_mm']} mm" if tool.get("thread_pitch_mm") not in (None, "") else ""
         return (
             f"T{tool.get('t_number', '—')} · D{tool.get('d_offset', '—')} · "
-            f"H{tool.get('h_offset', '—')} · Ø {tool.get('diameter_mm', '—')} mm"
+            f"H{tool.get('h_offset', '—')} · Ø {tool.get('diameter_mm', '—')} mm{pitch}"
         )
 
     tools = list_tools()
@@ -741,7 +748,7 @@ def clean_value(field: str, value):
         return None if field not in {"description", "tool_type", "icon", "notes", "material", "coolant"} else ""
     if field in {"t_number", "d_offset", "h_offset", "flutes", "rpm"}:
         return int(value)
-    if field in {"diameter_mm", "length_mm", "usage_hours", "life_hours", "vc_m_min", "fz_mm_tooth", "feed_mm_min", "ap_mm", "ae_mm"}:
+    if field in {"diameter_mm", "length_mm", "thread_pitch_mm", "usage_hours", "life_hours", "vc_m_min", "fz_mm_tooth", "feed_mm_min", "ap_mm", "ae_mm"}:
         return float(value)
     return str(value).strip()
 
@@ -754,6 +761,8 @@ def update_tool(slot: int, payload: dict) -> dict:
         raise ValueError("Stato utensile non valido")
     if (values.get("usage_hours") or 0) < 0 or (values.get("life_hours") or 0) < 0:
         raise ValueError("Le ore non possono essere negative")
+    if (values.get("thread_pitch_mm") or 0) < 0:
+        raise ValueError("Il passo della filettatura non può essere negativo")
     if not values:
         raise ValueError("Nessun campo utensile valido")
     with connect() as db:
@@ -767,6 +776,8 @@ def update_tool(slot: int, payload: dict) -> dict:
             values["status"] = "to_sharpen"
         merged = row_to_dict(current)
         merged.update(values)
+        if merged.get("icon") in {"tap", "thread_comb"} and not (merged.get("thread_pitch_mm") or 0) > 0:
+            raise ValueError("Inserisci il passo della filettatura")
         if not current["tool_uid"] and _has_tool_data(merged):
             values["tool_uid"] = uuid.uuid4().hex
             _record_event(db, values["tool_uid"], "created", f"Utensile creato nella posizione {slot}", to_slot=slot)
@@ -787,7 +798,7 @@ def _reset_tool(db: sqlite3.Connection, slot: int) -> None:
     result = db.execute(
             """UPDATE tools SET t_number = ?, d_offset = ?, h_offset = ?,
                diameter_mm = NULL, length_mm = NULL, description = '', tool_type = '', icon = '',
-               flutes = NULL, notes = '', status = 'in_use', usage_hours = 0, life_hours = NULL,
+               thread_pitch_mm = NULL, flutes = NULL, notes = '', status = 'in_use', usage_hours = 0, life_hours = NULL,
                timer_started_at = NULL, tool_uid = NULL, updated_at = ? WHERE slot = ?""",
             (slot, slot, slot, utc_now(), slot),
         )
@@ -816,7 +827,7 @@ def _active_snapshot(db: sqlite3.Connection, slot: int) -> tuple[dict, list[dict
 
 
 def _has_tool_data(tool: dict) -> bool:
-    return any(tool.get(field) not in (None, "") for field in ("description", "tool_type", "diameter_mm", "length_mm", "flutes", "notes"))
+    return any(tool.get(field) not in (None, "") for field in ("description", "tool_type", "diameter_mm", "length_mm", "thread_pitch_mm", "flutes", "notes"))
 
 
 def _store_history(db: sqlite3.Connection, slot: int, tool: dict, cuts: list[dict]) -> int:
@@ -1003,6 +1014,8 @@ def _clean_tool_import(raw: object, expected_slot: int) -> dict:
         raise ValueError(f"Stato non valido nella posizione {expected_slot}")
     if values["usage_hours"] < 0 or (values["life_hours"] is not None and values["life_hours"] < 0):
         raise ValueError(f"Ore non valide nella posizione {expected_slot}")
+    if values["thread_pitch_mm"] is not None and values["thread_pitch_mm"] < 0:
+        raise ValueError(f"Passo filettatura non valido nella posizione {expected_slot}")
     return values
 
 
@@ -1245,6 +1258,10 @@ def create_inventory_tool(payload: dict) -> dict:
     values["usage_hours"] = values["usage_hours"] or 0
     if values["icon"] not in TOOL_ICONS or values["status"] not in TOOL_STATUSES:
         raise ValueError("Icona o stato utensile non valido")
+    if (values["thread_pitch_mm"] or 0) < 0:
+        raise ValueError("Il passo della filettatura non può essere negativo")
+    if values["icon"] in {"tap", "thread_comb"} and not (values["thread_pitch_mm"] or 0) > 0:
+        raise ValueError("Inserisci il passo della filettatura")
     if not (values["description"] or values["tool_type"]):
         raise ValueError("Inserisci almeno una descrizione o il tipo utensile")
     tool_uid = uuid.uuid4().hex

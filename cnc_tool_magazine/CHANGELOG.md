@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.0
+
+- Nuovo campo **Passo filettatura (mm)**, mostrato automaticamente per Maschio e Pettine per filetti.
+- Aggiunto **Pettine per filetti** all'elenco degli utensili selezionabili.
+- Per i maschi l'avanzamento viene calcolato con la formula sincronizzata `F = S × passo`.
+- Per i pettini l'avanzamento di taglio resta `F = S × Z × Fz` e il passo indica l'avanzamento assiale per giro dell'interpolazione elicoidale.
+- Il passo viene conservato durante spostamenti, archiviazione, Officina, duplicazione, esportazione e ripristino.
+- Il passo compare nelle schede, nella ricerca globale e nel PDF.
+
 ## 1.2.4
 
 - La scelta dell'icona compila automaticamente il campo **Tipo utensile** con il nome corrispondente.

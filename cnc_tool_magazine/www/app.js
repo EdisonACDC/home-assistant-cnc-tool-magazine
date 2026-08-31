@@ -28,9 +28,9 @@ const viselForm = document.querySelector("#visel-form");
 const searchInput = document.querySelector("#search");
 const searchResults = document.querySelector("#search-results");
 const clearSearchButton = document.querySelector("#clear-search");
-const inventoryFields = ["description","tool_type","icon","diameter_mm","length_mm","flutes","notes"];
+const inventoryFields = ["description","tool_type","icon","diameter_mm","length_mm","thread_pitch_mm","flutes","notes"];
 const templateFields = ["name","vc_m_min","fz_mm_tooth","ap_mm","ae_mm","coolant","notes"];
-const fields = ["t_number","d_offset","h_offset","diameter_mm","length_mm","description","tool_type","icon","flutes","status","usage_hours","life_hours","notes"];
+const fields = ["t_number","d_offset","h_offset","diameter_mm","length_mm","description","tool_type","icon","thread_pitch_mm","flutes","status","usage_hours","life_hours","notes"];
 const cuttingFields = ["id","material","coolant","vc_m_min","rpm","fz_mm_tooth","feed_mm_min","ap_mm","ae_mm","notes"];
 const TOOL_ICONS = [
   {id:"end_mill", label:"Fresa cilindrica"},
@@ -44,6 +44,7 @@ const TOOL_ICONS = [
   {id:"drill", label:"Punta da trapano"},
   {id:"center_drill", label:"Punta a centrare"},
   {id:"tap", label:"Maschio"},
+  {id:"thread_comb", label:"Pettine per filetti", asset:"tap"},
   {id:"reamer", label:"Alesatore"},
   {id:"boring_bar", label:"Bareno"},
   {id:"engraving", label:"Utensile da incisione"},
@@ -62,7 +63,7 @@ function iconDefinition(icon) {
 
 function toolIcon(icon, className = "tool-icon") {
   const definition = iconDefinition(icon);
-  return definition ? `<img class="${className}" src="static/tool-icons/${definition.id}.png" alt="" aria-hidden="true">` : "";
+  return definition ? `<img class="${className}" src="static/tool-icons/${definition.asset || definition.id}.png" alt="" aria-hidden="true">` : "";
 }
 
 function iconLabel(icon) {
@@ -74,6 +75,17 @@ function setToolTypeFromIcon(form, icon) {
   if (definition) form.elements.tool_type.value = definition.label;
 }
 
+function isThreadingIcon(icon) {
+  return icon === "tap" || icon === "thread_comb";
+}
+
+function updateThreadPitchVisibility(form, fieldId) {
+  const active = isThreadingIcon(form.elements.icon.value);
+  const field = document.querySelector(fieldId);
+  field.hidden = !active;
+  field.querySelector("input").required = active;
+}
+
 async function request(url, options = {}) {
   const response = await fetch(url, { ...options, headers: {"Content-Type":"application/json", ...(options.headers || {})} });
   const data = await response.json().catch(() => ({}));
@@ -82,7 +94,7 @@ async function request(url, options = {}) {
 }
 
 function isOccupied(tool) {
-  return Boolean(tool.description || tool.tool_type || tool.icon || tool.diameter_mm || tool.length_mm || tool.flutes || tool.notes || tool.cutting_parameters?.length);
+  return Boolean(tool.description || tool.tool_type || tool.icon || tool.diameter_mm || tool.length_mm || tool.thread_pitch_mm || tool.flutes || tool.notes || tool.cutting_parameters?.length);
 }
 
 function render() {
@@ -199,7 +211,7 @@ function toolCard(tool) {
     ${issues.length ? `<div class="warning-chip" title="${esc(issues.map(item => item.message).join(" · "))}">⚠ ${issues.length} ${issues.length === 1 ? "segnalazione" : "segnalazioni"}</div>` : ""}
     <div class="tool-title">${toolIcon(tool.icon, "card-tool-icon")}<h3>${esc(title)}</h3></div>
     <div class="offsets"><span>T<b>${esc(tool.t_number ?? "—")}</b></span><span>D<b>${esc(tool.d_offset ?? "—")}</b></span><span>H<b>${esc(tool.h_offset ?? "—")}</b></span></div>
-    <p class="measure">Ø ${esc(tool.diameter_mm ?? "—")} mm · L ${esc(tool.length_mm ?? "—")} mm${tool.flutes ? ` · Z${esc(tool.flutes)}` : ""}</p>
+    <p class="measure">Ø ${esc(tool.diameter_mm ?? "—")} mm · L ${esc(tool.length_mm ?? "—")} mm${tool.thread_pitch_mm ? ` · P${esc(tool.thread_pitch_mm)} mm` : ""}${tool.flutes ? ` · Z${esc(tool.flutes)}` : ""}</p>
     <div class="card-life">${life}</div>
     <div class="material-chips">${materials}${tool.history.length ? `<span class="chip">${tool.history.length} storico</span>` : ""}</div>
   </article>`;
@@ -275,6 +287,7 @@ function openTool(slot, historyId = null) {
   document.querySelector("#dialog-title").textContent = `Posto ${slot}`;
   fields.forEach(field => { toolForm.elements[field].value = tool[field] ?? ""; });
   renderSelectedIcon(tool.icon);
+  updateThreadPitchVisibility(toolForm, "#thread-pitch-field");
   clearCutting();
   renderCutting(tool);
   renderHistory(tool);
@@ -312,7 +325,7 @@ function renderUsage(tool) {
 function renderHistory(tool) {
   historyList.innerHTML = tool.history.length ? tool.history.map(item => `
     <article class="history-row" data-id="${item.history_id}">
-      <div class="history-identity">${toolIcon(item.icon, "history-tool-icon")}<div><strong>${esc(item.description || item.tool_type || "Utensile senza descrizione")}</strong><small>Archiviato ${esc(new Date(item.archived_at).toLocaleString("it-IT"))} · ${esc(STATUS_LABELS[item.status] || "In uso")} · ${formatHours(item.usage_hours)}</small>${(item.attachments || []).map(file => `<a class="history-file" href="api/attachments/${file.id}" target="_blank" rel="noopener">📎 ${esc(file.original_name)}</a>`).join("")}</div></div>
+      <div class="history-identity">${toolIcon(item.icon, "history-tool-icon")}<div><strong>${esc(item.description || item.tool_type || "Utensile senza descrizione")}</strong><small>Archiviato ${esc(new Date(item.archived_at).toLocaleString("it-IT"))} · ${esc(STATUS_LABELS[item.status] || "In uso")}${item.thread_pitch_mm ? ` · Passo ${esc(item.thread_pitch_mm)} mm` : ""} · ${formatHours(item.usage_hours)}</small>${(item.attachments || []).map(file => `<a class="history-file" href="api/attachments/${file.id}" target="_blank" rel="noopener">📎 ${esc(file.original_name)}</a>`).join("")}</div></div>
       <div><small>T</small>${esc(item.t_number ?? "—")}</div>
       <div><small>D</small>${esc(item.d_offset ?? "—")}</div>
       <div><small>H</small>${esc(item.h_offset ?? "—")}</div>
@@ -400,6 +413,7 @@ async function selectIcon(icon) {
   if (state.iconTarget?.type === "active") {
     toolForm.elements.icon.value = icon;
     setToolTypeFromIcon(toolForm, icon);
+    updateThreadPitchVisibility(toolForm, "#thread-pitch-field");
     renderSelectedIcon(icon);
     iconDialog.close();
     return;
@@ -625,11 +639,18 @@ document.querySelector("#copy-cutting").addEventListener("click", async () => {
 document.querySelector("#calculate-cutting").addEventListener("click", () => {
   const diameter = Number(toolForm.elements.diameter_mm.value);
   const flutes = Number(toolForm.elements.flutes.value);
+  const pitch = Number(toolForm.elements.thread_pitch_mm.value);
+  const icon = toolForm.elements.icon.value;
   let vc = Number(cuttingForm.elements.vc_m_min.value);
   let rpm = Number(cuttingForm.elements.rpm.value);
   let fz = Number(cuttingForm.elements.fz_mm_tooth.value);
   let feed = Number(cuttingForm.elements.feed_mm_min.value);
   let calculated = false;
+
+  if (isThreadingIcon(icon) && !(pitch > 0)) {
+    toast("Inserisci il passo della filettatura", true);
+    return;
+  }
 
   if (diameter > 0 && vc > 0) {
     rpm = Math.round((vc * 1000) / (Math.PI * diameter));
@@ -640,7 +661,11 @@ document.querySelector("#calculate-cutting").addEventListener("click", () => {
     cuttingForm.elements.vc_m_min.value = vc.toFixed(1);
     calculated = true;
   }
-  if (rpm > 0 && flutes > 0 && fz > 0) {
+  if (icon === "tap" && rpm > 0 && pitch > 0) {
+    feed = rpm * pitch;
+    cuttingForm.elements.feed_mm_min.value = feed.toFixed(1);
+    calculated = true;
+  } else if (rpm > 0 && flutes > 0 && fz > 0) {
     feed = rpm * flutes * fz;
     cuttingForm.elements.feed_mm_min.value = feed.toFixed(1);
     calculated = true;
@@ -649,7 +674,12 @@ document.querySelector("#calculate-cutting").addEventListener("click", () => {
     cuttingForm.elements.fz_mm_tooth.value = fz.toFixed(3);
     calculated = true;
   }
-  toast(calculated ? "Giri e avanzamento calcolati: controlla i valori prima di salvarli" : "Inserisci diametro e Vc, oppure giri, taglienti e Fz", !calculated);
+  const message = icon === "tap"
+    ? `Maschio: F = S × passo${pitch > 0 ? ` (${pitch} mm)` : ""}. Controlla i valori prima di salvarli`
+    : icon === "thread_comb"
+      ? `Pettine: F = S × Z × Fz; passo elica ${pitch || "non inserito"} mm per giro di interpolazione`
+      : "Giri e avanzamento calcolati: controlla i valori prima di salvarli";
+  toast(calculated ? message : (isThreadingIcon(icon) && !pitch ? "Inserisci il passo della filettatura" : "Inserisci diametro e Vc, oppure giri, taglienti e Fz"), !calculated);
 });
 
 const importFile = document.querySelector("#import-file");
@@ -727,7 +757,10 @@ labelsDialog.addEventListener("click", event => { if (event.target === labelsDia
 
 const inventoryIconSelect = document.querySelector("#inventory-icon-select");
 inventoryIconSelect.innerHTML = `<option value="">Nessuna icona</option>${TOOL_ICONS.map(item => `<option value="${item.id}">${esc(item.label)}</option>`).join("")}`;
-inventoryIconSelect.addEventListener("change", () => setToolTypeFromIcon(inventoryForm, inventoryIconSelect.value));
+inventoryIconSelect.addEventListener("change", () => {
+  setToolTypeFromIcon(inventoryForm, inventoryIconSelect.value);
+  updateThreadPitchVisibility(inventoryForm, "#inventory-thread-pitch-field");
+});
 
 async function loadInventory() {
   const data = await request("api/inventory");
@@ -748,7 +781,7 @@ function openInventoryDeepLink(id) {
 function renderInventory() {
   inventoryList.innerHTML = state.inventory.length ? state.inventory.map(tool => `
     <article class="inventory-card" data-id="${tool.inventory_id}">
-      <div class="inventory-head">${toolIcon(tool.icon, "history-tool-icon")}<div><strong>${esc(tool.description || tool.tool_type)}</strong><small>${esc(tool.tool_type || "Tipo non indicato")} · Ø ${esc(tool.diameter_mm ?? "—")} mm · Z${esc(tool.flutes ?? "—")}</small></div></div>
+      <div class="inventory-head">${toolIcon(tool.icon, "history-tool-icon")}<div><strong>${esc(tool.description || tool.tool_type)}</strong><small>${esc(tool.tool_type || "Tipo non indicato")} · Ø ${esc(tool.diameter_mm ?? "—")} mm${tool.thread_pitch_mm ? ` · P${esc(tool.thread_pitch_mm)} mm` : ""} · Z${esc(tool.flutes ?? "—")}</small></div></div>
       <div class="material-chips">${(tool.cutting_parameters || []).map(item => `<span class="chip">${esc(item.material)}</span>`).join("")}</div>
       <div class="inventory-attachments">${attachmentMarkup(tool.attachments || [])}</div>
       <div class="row-actions inventory-actions"><button class="mini-button mount-inventory" type="button">Monta</button><label class="mini-button file-button">Allega<input class="inventory-file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,text/plain" hidden></label><button class="mini-button delete delete-inventory" type="button">Elimina</button></div>
@@ -803,6 +836,7 @@ inventoryForm.addEventListener("submit", async event => {
   try {
     await request("api/inventory", {method:"POST", body:JSON.stringify(formData(inventoryForm, inventoryFields))});
     inventoryForm.reset();
+    updateThreadPitchVisibility(inventoryForm, "#inventory-thread-pitch-field");
     await loadInventory();
     toast("Utensile aggiunto in Officina");
   } catch (error) { toast(error.message, true); }
