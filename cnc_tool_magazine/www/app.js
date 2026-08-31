@@ -69,6 +69,11 @@ function iconLabel(icon) {
   return iconDefinition(icon)?.label || "Nessuna icona";
 }
 
+function setToolTypeFromIcon(form, icon) {
+  const definition = iconDefinition(icon);
+  if (definition) form.elements.tool_type.value = definition.label;
+}
+
 async function request(url, options = {}) {
   const response = await fetch(url, { ...options, headers: {"Content-Type":"application/json", ...(options.headers || {})} });
   const data = await response.json().catch(() => ({}));
@@ -394,6 +399,7 @@ function openIconPicker(type, historyId = null) {
 async function selectIcon(icon) {
   if (state.iconTarget?.type === "active") {
     toolForm.elements.icon.value = icon;
+    setToolTypeFromIcon(toolForm, icon);
     renderSelectedIcon(icon);
     iconDialog.close();
     return;
@@ -719,7 +725,9 @@ document.querySelector("#print-labels").addEventListener("click", () => window.p
 document.querySelector("#close-labels-dialog").addEventListener("click", () => labelsDialog.close());
 labelsDialog.addEventListener("click", event => { if (event.target === labelsDialog) labelsDialog.close(); });
 
-document.querySelector("#inventory-icon-select").innerHTML = `<option value="">Nessuna icona</option>${TOOL_ICONS.map(item => `<option value="${item.id}">${esc(item.label)}</option>`).join("")}`;
+const inventoryIconSelect = document.querySelector("#inventory-icon-select");
+inventoryIconSelect.innerHTML = `<option value="">Nessuna icona</option>${TOOL_ICONS.map(item => `<option value="${item.id}">${esc(item.label)}</option>`).join("")}`;
+inventoryIconSelect.addEventListener("change", () => setToolTypeFromIcon(inventoryForm, inventoryIconSelect.value));
 
 async function loadInventory() {
   const data = await request("api/inventory");
