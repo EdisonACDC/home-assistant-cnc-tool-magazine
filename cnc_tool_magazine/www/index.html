@@ -28,6 +28,7 @@
       <button class="button secondary" id="visel-button">Visel</button>
       <button class="button secondary" id="export-button">Esporta JSON</button>
       <button class="button secondary" id="export-pdf-button">Esporta PDF</button>
+      <button class="button secondary" id="machine-table-button">Tabella macchina PDF</button>
       <button class="button" id="refresh-button">Aggiorna</button>
     </div>
   </header>
@@ -249,6 +250,23 @@
         </div>
         <label><span>Note tecniche</span><textarea name="notes" rows="3" placeholder="Formato file, porta, versione controllo…"></textarea></label>
         <div class="form-actions"><button class="button" type="submit">Salva preparazione Visel</button></div>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="machine-table-dialog" class="management-dialog">
+    <div class="management-content">
+      <div class="dialog-head">
+        <div><p class="eyebrow">Stampa operatore</p><h2>Tabella macchina A4</h2><p class="subtitle">30 posti fissi con icona, T, D, H, descrizione e, per ogni materiale, soltanto F e S.</p></div>
+        <button type="button" class="icon-button" id="close-machine-table-dialog" aria-label="Chiudi">×</button>
+      </div>
+      <p class="subtitle table-color-help">Scegli il colore associato a ogni tipo utensile. I colori vengono salvati e riutilizzati nelle prossime esportazioni.</p>
+      <form id="machine-table-form">
+        <div id="tool-type-color-list" class="tool-type-color-list"></div>
+        <div class="form-actions">
+          <button class="button secondary" id="save-table-colors" type="button">Salva colori</button>
+          <button class="button" type="submit">Genera PDF A4</button>
+        </div>
       </form>
     </div>
   </dialog>

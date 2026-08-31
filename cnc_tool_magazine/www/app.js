@@ -954,6 +954,67 @@ document.querySelector("#export-pdf-button").addEventListener("click", async () 
   } catch (error) { toast(error.message, true); }
 });
 
+const machineTableDialog = document.querySelector("#machine-table-dialog");
+const machineTableForm = document.querySelector("#machine-table-form");
+const toolTypeColorList = document.querySelector("#tool-type-color-list");
+
+function renderToolTypeColors(values) {
+  toolTypeColorList.innerHTML = TOOL_ICONS.map(item => `
+    <label class="tool-type-color" data-icon="${item.id}">
+      ${toolIcon(item.id, "color-tool-icon")}
+      <span>${esc(item.label)}</span>
+      <input type="color" value="${esc(values[item.id] || "#7B8794")}" aria-label="Colore ${esc(item.label)}">
+      <code>${esc(values[item.id] || "#7B8794")}</code>
+    </label>`).join("");
+  toolTypeColorList.querySelectorAll("input[type=color]").forEach(input => input.addEventListener("input", () => {
+    input.closest("label").querySelector("code").textContent = input.value.toUpperCase();
+  }));
+}
+
+function selectedToolTypeColors() {
+  return Object.fromEntries([...toolTypeColorList.querySelectorAll(".tool-type-color")].map(row => [
+    row.dataset.icon, row.querySelector("input").value.toUpperCase()
+  ]));
+}
+
+async function saveTableColors(showMessage = true) {
+  const data = await request("api/tool-type-colors", {
+    method:"PUT", body:JSON.stringify({colors:selectedToolTypeColors()})
+  });
+  if (showMessage) toast("Colori della tabella salvati");
+  return data.colors;
+}
+
+document.querySelector("#machine-table-button").addEventListener("click", async () => {
+  try {
+    const data = await request("api/tool-type-colors");
+    renderToolTypeColors(data.colors);
+    machineTableDialog.showModal();
+  } catch (error) { toast(error.message, true); }
+});
+
+document.querySelector("#save-table-colors").addEventListener("click", async () => {
+  try { await saveTableColors(); } catch (error) { toast(error.message, true); }
+});
+
+machineTableForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  try {
+    await saveTableColors(false);
+    const response = await fetch("api/export/machine-table.pdf");
+    if (!response.ok) throw new Error(`Errore HTTP ${response.status}`);
+    const blob = await response.blob();
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `tabella-utensili-macchina-${new Date().toISOString().slice(0,10)}.pdf`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    toast("Tabella macchina PDF generata");
+  } catch (error) { toast(error.message, true); }
+});
+
+document.querySelector("#close-machine-table-dialog").addEventListener("click", () => machineTableDialog.close());
+
 let toastTimer;
 function toast(message, error = false) {
   const element = document.querySelector("#toast");
