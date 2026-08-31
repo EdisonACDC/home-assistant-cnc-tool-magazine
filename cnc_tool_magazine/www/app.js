@@ -25,6 +25,9 @@ const validationDialog = document.querySelector("#validation-dialog");
 const validationList = document.querySelector("#validation-list");
 const viselDialog = document.querySelector("#visel-dialog");
 const viselForm = document.querySelector("#visel-form");
+const searchInput = document.querySelector("#search");
+const searchResults = document.querySelector("#search-results");
+const clearSearchButton = document.querySelector("#clear-search");
 const inventoryFields = ["description","tool_type","icon","diameter_mm","length_mm","flutes","notes"];
 const templateFields = ["name","vc_m_min","fz_mm_tooth","ap_mm","ae_mm","coolant","notes"];
 const fields = ["t_number","d_offset","h_offset","diameter_mm","length_mm","description","tool_type","icon","flutes","status","usage_hours","life_hours","notes"];
@@ -78,14 +81,12 @@ function isOccupied(tool) {
 }
 
 function render() {
-  const query = document.querySelector("#search").value.trim().toLowerCase();
   const filter = document.querySelector("#filter").value;
   const visible = state.tools.filter(tool => {
     const occupied = isOccupied(tool);
     if (filter === "occupied" && !occupied) return false;
     if (filter === "free" && occupied) return false;
-    const haystack = [tool.slot, tool.t_number, tool.description, tool.tool_type, tool.notes, ...tool.cutting_parameters.map(x => x.material)].join(" ").toLowerCase();
-    return !query || haystack.includes(query);
+    return true;
   });
   grid.innerHTML = visible.map(toolCard).join("");
   document.querySelector("#empty-state").hidden = visible.length > 0;
@@ -108,6 +109,68 @@ function render() {
   document.querySelector("#free-count").textContent = 30 - occupied;
   document.querySelector("#material-count").textContent = state.tools.reduce((sum, tool) => sum + tool.cutting_parameters.length, 0);
 }
+
+const SEARCH_TYPE_LABELS = {active:"Montato", history:"Storico", inventory:"Officina", material:"Materiale", document:"Documento"};
+let searchTimer;
+
+function renderSearchResults(items, query) {
+  searchResults.hidden = false;
+  searchResults.innerHTML = items.length ? `
+    <div class="search-results-head"><strong>${items.length} ${items.length === 1 ? "risultato" : "risultati"}</strong><span>per “${esc(query)}”</span></div>
+    <div class="search-results-list">${items.map((item, index) => `
+      <button class="search-result" type="button" data-index="${index}">
+        <span class="search-result-type type-${esc(item.type)}">${esc(SEARCH_TYPE_LABELS[item.type] || item.type)}</span>
+        <span class="search-result-body"><strong>${esc(item.title)}</strong><small>${esc(item.location)} · ${esc(item.detail || "")}</small></span>
+        <span class="search-result-arrow" aria-hidden="true">›</span>
+      </button>`).join("")}</div>` : `<div class="search-no-results"><strong>Nessun risultato</strong><p>Prova con descrizione, numero T/D/H, materiale o nome del documento.</p></div>`;
+  searchResults.querySelectorAll(".search-result").forEach(button => button.addEventListener("click", () => openSearchResult(items[Number(button.dataset.index)])));
+}
+
+function openSearchResult(item) {
+  if (item.type === "active" || item.type === "history" || (item.type === "document" && item.slot)) {
+    openTool(Number(item.slot), Number(item.history_id) || null);
+    return;
+  }
+  if (item.type === "inventory" || (item.type === "document" && item.inventory_id)) {
+    openInventoryDeepLink(Number(item.inventory_id));
+    return;
+  }
+  if (item.type === "material") {
+    renderTemplateList();
+    materialLibraryDialog.showModal();
+    const row = templateList.querySelector(`[data-id="${item.template_id}"]`);
+    if (row) {
+      row.classList.add("highlighted");
+      setTimeout(() => row.scrollIntoView({behavior:"smooth", block:"center"}), 100);
+    }
+  }
+}
+
+async function runGlobalSearch() {
+  const query = searchInput.value.trim();
+  clearSearchButton.hidden = !query;
+  if (!query) {
+    searchResults.hidden = true;
+    searchResults.innerHTML = "";
+    return;
+  }
+  searchResults.hidden = false;
+  searchResults.innerHTML = `<p class="search-loading">Ricerca in corso…</p>`;
+  try {
+    const data = await request(`api/search?q=${encodeURIComponent(query)}`);
+    if (searchInput.value.trim() === query) renderSearchResults(data.results, query);
+  } catch (error) { toast(error.message, true); }
+}
+
+searchInput.addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(runGlobalSearch, 220);
+});
+clearSearchButton.addEventListener("click", () => {
+  searchInput.value = "";
+  runGlobalSearch();
+  searchInput.focus();
+});
 
 function toolCard(tool) {
   const occupied = isOccupied(tool);
@@ -858,7 +921,6 @@ function toast(message, error = false) {
   toastTimer = setTimeout(() => element.className = "toast", 2800);
 }
 
-document.querySelector("#search").addEventListener("input", render);
 document.querySelector("#filter").addEventListener("change", render);
 document.querySelector("#refresh-button").addEventListener("click", () => loadTools(true));
 document.querySelector("#close-dialog").addEventListener("click", () => dialog.close());

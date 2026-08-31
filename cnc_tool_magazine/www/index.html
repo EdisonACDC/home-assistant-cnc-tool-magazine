@@ -33,6 +33,13 @@
   </header>
 
   <main>
+    <section class="global-search" aria-label="Ricerca globale">
+      <label for="search"><span class="eyebrow">Cerca in tutto il magazzino</span></label>
+      <div class="global-search-field"><span aria-hidden="true">⌕</span><input id="search" type="search" autocomplete="off" placeholder="Cerca utensili, T/D/H, storico, Officina, materiali o documenti…"><button id="clear-search" type="button" aria-label="Cancella ricerca" hidden>×</button></div>
+      <p class="global-search-help">La ricerca comprende posti montati, storico, Officina, libreria materiali e nomi degli allegati.</p>
+      <section id="search-results" class="search-results" aria-live="polite" hidden></section>
+    </section>
+
     <section class="summary" aria-label="Riepilogo">
       <article><strong id="occupied-count">0</strong><span>posti occupati</span></article>
       <article><strong id="free-count">30</strong><span>posti liberi</span></article>
@@ -41,11 +48,7 @@
       <article><strong id="validation-count">0</strong><span>segnalazioni da controllare</span></article>
     </section>
 
-    <section class="toolbar">
-      <label class="search">
-        <span>Cerca</span>
-        <input id="search" type="search" placeholder="T, descrizione, tipo o materiale…">
-      </label>
+    <section class="toolbar filter-toolbar">
       <label>
         <span>Visualizza</span>
         <select id="filter">

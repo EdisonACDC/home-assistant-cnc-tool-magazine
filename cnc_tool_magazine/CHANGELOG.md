@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+- Barra di ricerca più grande e posizionata all'inizio della pagina.
+- Ricerca globale in utensili montati, utensili archiviati, Officina e libreria materiali.
+- Ricerca per T, D, H, descrizione, tipo, diametro, note, materiali e parametri di taglio.
+- Ricerca nei nomi di PDF, fotografie e altri documenti allegati.
+- Risultati classificati per posizione con apertura diretta della relativa scheda.
+
 ## 1.1.0
 
 - Controlli automatici per numeri T duplicati, correttori D/H duplicati e diametri mancanti.
