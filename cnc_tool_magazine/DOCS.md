@@ -36,6 +36,8 @@ Apri **Officina** per registrare gli utensili disponibili ma non montati. Puoi a
 
 Il comando **Sposta** trasferisce un utensile montato in un'altra posizione libera. La pagina **Movimenti** registra automaticamente creazione, montaggio, smontaggio, spostamento e archiviazione.
 
+Durante gli spostamenti il numero **T** viene aggiornato in base alla nuova posizione fisica. I correttori **D e H** restano invece quelli assegnati all'utensile e vengono conservati anche nel passaggio in Officina e nel successivo rimontaggio.
+
 ## Libreria dei materiali
 
 La libreria include modelli iniziali modificabili per C45, acciaio inox, alluminio e ottone. Nel modulo dei parametri scegli un modello per compilare Vc, Fz, ap, ae e refrigerazione. I valori sono soltanto indicativi: devono essere controllati in base a utensile, materiale reale, macchina, serraggio e dati del produttore.

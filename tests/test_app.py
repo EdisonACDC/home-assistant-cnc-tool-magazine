@@ -174,7 +174,7 @@ class DatabaseTests(unittest.TestCase):
             app.qr_svg("javascript:alert(1)")
 
     def test_moves_tool_to_inventory_and_mounts_it_again(self):
-        app.update_tool(5, {"description": "Fresa Officina", "diameter_mm": 10})
+        app.update_tool(5, {"description": "Fresa Officina", "diameter_mm": 10, "d_offset": 205, "h_offset": 305})
         app.upsert_cutting(5, {"material": "C45", "rpm": 5000})
         original_uid = app.list_tools()[4]["tool_uid"]
         result = app.active_to_inventory(5)
@@ -186,19 +186,25 @@ class DatabaseTests(unittest.TestCase):
         mounted = app.list_tools()[11]
         self.assertEqual("Fresa Officina", mounted["description"])
         self.assertEqual(original_uid, mounted["tool_uid"])
+        self.assertEqual(12, mounted["t_number"])
+        self.assertEqual(205, mounted["d_offset"])
+        self.assertEqual(305, mounted["h_offset"])
         self.assertEqual("C45", mounted["cutting_parameters"][0]["material"])
         self.assertEqual([], app.list_inventory())
         descriptions = [event["description"] for event in app.list_events()]
         self.assertTrue(any("montato nella posizione 12" in text for text in descriptions))
 
     def test_moves_active_tool_between_free_slots_and_records_event(self):
-        app.update_tool(3, {"description": "Punta mobile"})
+        app.update_tool(3, {"description": "Punta mobile", "d_offset": 103, "h_offset": 203})
         uid = app.list_tools()[2]["tool_uid"]
         app.move_active_tool(3, 7)
         tools = app.list_tools()
         self.assertEqual("", tools[2]["description"])
         self.assertEqual("Punta mobile", tools[6]["description"])
         self.assertEqual(uid, tools[6]["tool_uid"])
+        self.assertEqual(7, tools[6]["t_number"])
+        self.assertEqual(103, tools[6]["d_offset"])
+        self.assertEqual(203, tools[6]["h_offset"])
         self.assertEqual("moved", app.list_events()[0]["event_type"])
 
     def test_material_library_has_starters_and_supports_custom_templates(self):

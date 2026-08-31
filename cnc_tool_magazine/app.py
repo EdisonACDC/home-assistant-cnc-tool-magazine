@@ -1299,8 +1299,6 @@ def mount_inventory_tool(inventory_id: int, target_slot: int) -> dict:
         values.update({
             "tool_uid": row["tool_uid"],
             "t_number": target_slot,
-            "d_offset": target_slot,
-            "h_offset": target_slot,
             "status": "in_use",
             "updated_at": utc_now(),
         })
@@ -1334,7 +1332,7 @@ def move_active_tool(source_slot: int, target_slot: int) -> dict:
         tool_uid = source_tool.get("tool_uid") or uuid.uuid4().hex
         _reset_tool(db, target_slot)
         values = {field: source_tool.get(field) for field in TOOL_FIELDS}
-        values.update({"tool_uid": tool_uid, "t_number": target_slot, "d_offset": target_slot, "h_offset": target_slot, "updated_at": utc_now()})
+        values.update({"tool_uid": tool_uid, "t_number": target_slot, "updated_at": utc_now()})
         assignments = ", ".join(f"{field} = ?" for field in values)
         db.execute(f"UPDATE tools SET {assignments} WHERE slot = ?", [*values.values(), target_slot])
         for cutting in cuts:
