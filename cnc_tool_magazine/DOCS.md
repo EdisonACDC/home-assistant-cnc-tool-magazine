@@ -32,7 +32,7 @@ Scansionando il QR si apre direttamente la scheda della posizione. Il telefono d
 
 ## Magazzino Officina e movimenti
 
-Apri **Officina** per registrare gli utensili disponibili ma non montati. Puoi aggiungere un nuovo utensile oppure usare **Metti in Officina** dalla scheda di una posizione. Con **Monta** scegli una posizione 1–30 senza ricreare i dati; se è occupata, l'utensile presente viene conservato automaticamente in Officina.
+Apri **Officina** per registrare gli utensili disponibili ma non montati. Il comando **Svuota posizione → Officina** libera il posto fisico e trasferisce automaticamente l'utensile in Officina senza eliminare dati, parametri o documenti. Con **Monta** scegli una posizione 1–30 senza ricreare i dati; se è occupata, l'utensile presente viene conservato automaticamente in Officina.
 
 Il comando **Sposta** trasferisce un utensile montato in un'altra posizione libera. La pagina **Movimenti** registra automaticamente creazione, montaggio, smontaggio, spostamento e archiviazione.
 

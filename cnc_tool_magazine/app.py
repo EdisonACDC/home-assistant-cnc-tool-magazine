@@ -1273,6 +1273,11 @@ def active_to_inventory(slot: int) -> dict:
     return {"ok": True, "inventory_id": inventory_id}
 
 
+def empty_position(slot: int) -> dict:
+    """Empty a physical slot without deleting its mounted tool."""
+    return active_to_inventory(slot)
+
+
 def mount_inventory_tool(inventory_id: int, target_slot: int) -> dict:
     with connect() as db:
         row = db.execute("SELECT * FROM inventory_tools WHERE id = ?", (inventory_id,)).fetchone()
@@ -1791,8 +1796,7 @@ class Handler(BaseHTTPRequestHandler):
             template_match = re.fullmatch(r"/api/material-templates/(\d+)", path)
             attachment_match = re.fullmatch(r"/api/attachments/(\d+)", path)
             if tool_match:
-                reset_tool(self.valid_slot(tool_match.group(1)))
-                self.send_json({"ok": True})
+                self.send_json(empty_position(self.valid_slot(tool_match.group(1))))
                 return
             if cutting_match:
                 delete_cutting(self.valid_slot(cutting_match.group(1)), int(cutting_match.group(2)))

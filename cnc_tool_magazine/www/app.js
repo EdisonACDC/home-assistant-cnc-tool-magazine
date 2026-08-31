@@ -549,12 +549,12 @@ document.querySelector("#attachment-file").addEventListener("change", async even
 });
 
 document.querySelector("#reset-tool").addEventListener("click", async () => {
-  if (!confirm(`Svuotare completamente la posizione ${state.activeSlot}?`)) return;
+  if (!confirm(`Svuotare la posizione ${state.activeSlot} e conservare l'utensile in Officina?`)) return;
   try {
     await request(`api/tools/${state.activeSlot}`, {method:"DELETE"});
     await loadTools();
     dialog.close();
-    toast(`Posizione ${state.activeSlot} svuotata`);
+    toast(`Posizione ${state.activeSlot} svuotata · utensile spostato in Officina`);
   } catch (error) { toast(error.message, true); }
 });
 
@@ -596,16 +596,6 @@ document.querySelector("#move-tool").addEventListener("click", async () => {
     await loadTools();
     dialog.close();
     toast(`Utensile spostato nella posizione ${target}`);
-  } catch (error) { toast(error.message, true); }
-});
-
-document.querySelector("#to-inventory").addEventListener("click", async () => {
-  if (!confirm(`Smontare l'utensile del posto ${state.activeSlot} e conservarlo nel magazzino Officina?`)) return;
-  try {
-    await request(`api/tools/${state.activeSlot}/inventory`, {method:"POST"});
-    await loadTools();
-    dialog.close();
-    toast("Utensile spostato in Officina");
   } catch (error) { toast(error.message, true); }
 });
 

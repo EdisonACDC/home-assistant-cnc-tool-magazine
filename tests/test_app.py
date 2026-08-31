@@ -194,6 +194,20 @@ class DatabaseTests(unittest.TestCase):
         descriptions = [event["description"] for event in app.list_events()]
         self.assertTrue(any("montato nella posizione 12" in text for text in descriptions))
 
+    def test_empty_position_moves_tool_to_inventory_without_deleting_it(self):
+        app.update_tool(18, {"description": "Fresa da conservare", "diameter_mm": 16, "d_offset": 118, "h_offset": 218})
+        app.upsert_cutting(18, {"material": "C45", "vc_m_min": 175})
+        uid = app.list_tools()[17]["tool_uid"]
+        result = app.empty_position(18)
+        emptied = app.list_tools()[17]
+        stored = next(item for item in app.list_inventory() if item["inventory_id"] == result["inventory_id"])
+        self.assertEqual("", emptied["description"])
+        self.assertEqual(uid, stored["tool_uid"])
+        self.assertEqual("Fresa da conservare", stored["description"])
+        self.assertEqual(118, stored["d_offset"])
+        self.assertEqual(218, stored["h_offset"])
+        self.assertEqual("C45", stored["cutting_parameters"][0]["material"])
+
     def test_moves_active_tool_between_free_slots_and_records_event(self):
         app.update_tool(3, {"description": "Punta mobile", "d_offset": 103, "h_offset": 203})
         uid = app.list_tools()[2]["tool_uid"]
