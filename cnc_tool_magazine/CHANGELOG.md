@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.3
+
+- **Svuota posizione** trasferisce automaticamente l'utensile nel magazzino Officina.
+- Durante lo svuotamento non vengono eliminati dati, parametri, documenti, ore o correttori dell'utensile.
+- Rimossa dall'interfaccia l'azione duplicata **Metti in Officina**.
+
 ## 1.2.2
 
 - I correttori D e H restano associati all'utensile durante ogni spostamento.
