@@ -14,7 +14,7 @@ Ogni scheda numerata rappresenta la stessa posizione fisica nel magazzino della 
 
 ## Ricerca globale
 
-La barra **Cerca in tutto il magazzino**, all'inizio della pagina, controlla contemporaneamente utensili montati, storico, Officina, libreria materiali e nomi dei documenti allegati. Puoi cercare descrizioni, tipi, numeri T/D/H, diametri, note, materiali e parametri di taglio. Ogni risultato indica dove si trova l'elemento e apre direttamente la scheda corrispondente.
+La barra **Cerca in tutto il magazzino**, all'inizio della pagina, controlla contemporaneamente utensili montati, storico, Officina, libreria materiali e nomi dei documenti allegati. Puoi cercare descrizioni, tipi, numeri T/D/H, diametri, note, materiali e parametri di taglio. Ogni risultato indica dove si trova l'elemento, mostra per ogni materiale Vc, S, Fz, F, ap, ae e refrigerazione, e apre direttamente la scheda corrispondente.
 
 La versione attuale cerca il nome degli allegati, non il testo contenuto all'interno dei PDF o delle fotografie.
 

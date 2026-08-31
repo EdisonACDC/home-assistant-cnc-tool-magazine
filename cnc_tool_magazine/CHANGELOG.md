@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1
+
+- I risultati della ricerca mostrano tutti i parametri di taglio dell'utensile trovato.
+- Per ogni materiale sono visibili Vc, giri S, Fz, avanzamento F, ap, ae e refrigerazione.
+- Indicazione esplicita quando un utensile trovato non ha ancora parametri di taglio.
+
 ## 1.2.0
 
 - Barra di ricerca più grande e posizionata all'inizio della pagina.

@@ -113,6 +113,16 @@ function render() {
 const SEARCH_TYPE_LABELS = {active:"Montato", history:"Storico", inventory:"Officina", material:"Materiale", document:"Documento"};
 let searchTimer;
 
+function searchCuttingMarkup(items = []) {
+  if (!items.length) return `<span class="search-cutting-empty">Parametri di taglio non inseriti</span>`;
+  return `<span class="search-cutting">${items.map(item => `
+    <span class="search-cutting-material"><b>${esc(item.material)}</b><span>
+      Vc ${esc(item.vc_m_min ?? "—")} m/min · S ${esc(item.rpm ?? "—")} rpm ·
+      Fz ${esc(item.fz_mm_tooth ?? "—")} mm/dente · F ${esc(item.feed_mm_min ?? "—")} mm/min ·
+      ap ${esc(item.ap_mm ?? "—")} mm · ae ${esc(item.ae_mm ?? "—")} mm${item.coolant ? ` · ${esc(item.coolant)}` : ""}
+    </span></span>`).join("")}</span>`;
+}
+
 function renderSearchResults(items, query) {
   searchResults.hidden = false;
   searchResults.innerHTML = items.length ? `
@@ -120,7 +130,7 @@ function renderSearchResults(items, query) {
     <div class="search-results-list">${items.map((item, index) => `
       <button class="search-result" type="button" data-index="${index}">
         <span class="search-result-type type-${esc(item.type)}">${esc(SEARCH_TYPE_LABELS[item.type] || item.type)}</span>
-        <span class="search-result-body"><strong>${esc(item.title)}</strong><small>${esc(item.location)} · ${esc(item.detail || "")}</small></span>
+        <span class="search-result-body"><strong>${esc(item.title)}</strong><small>${esc(item.location)} · ${esc(item.detail || "")}</small>${item.type !== "material" ? searchCuttingMarkup(item.cutting_parameters) : ""}</span>
         <span class="search-result-arrow" aria-hidden="true">›</span>
       </button>`).join("")}</div>` : `<div class="search-no-results"><strong>Nessun risultato</strong><p>Prova con descrizione, numero T/D/H, materiale o nome del documento.</p></div>`;
   searchResults.querySelectorAll(".search-result").forEach(button => button.addEventListener("click", () => openSearchResult(items[Number(button.dataset.index)])));
