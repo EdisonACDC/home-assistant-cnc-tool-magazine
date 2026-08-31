@@ -87,6 +87,7 @@
       </div>
       <div class="form-grid">
         <label><span>Tipo utensile</span><input name="tool_type" maxlength="80" placeholder="Fresa, punta, maschio…"></label>
+        <label id="thread-pitch-field" hidden><span>Passo filettatura (mm)</span><input name="thread_pitch_mm" type="number" min="0" step="0.001" placeholder="Es. 1,5"></label>
         <label><span>Numero taglienti Z</span><input name="flutes" type="number" min="1" max="100" step="1"></label>
         <label><span>Diametro reale (mm)</span><input name="diameter_mm" type="number" min="0" step="0.001"></label>
         <label><span>Altezza/Lunghezza (mm)</span><input name="length_mm" type="number" min="0" step="0.001"></label>
@@ -189,6 +190,7 @@
           <label><span>Descrizione *</span><input name="description" required placeholder="Es. Fresa MD Ø12"></label>
           <label><span>Tipo</span><input name="tool_type" placeholder="Fresa, punta, maschio…"></label>
           <label><span>Icona</span><select name="icon" id="inventory-icon-select"></select></label>
+          <label id="inventory-thread-pitch-field" hidden><span>Passo filettatura (mm)</span><input name="thread_pitch_mm" type="number" min="0" step="0.001" placeholder="Es. 1,5"></label>
           <label><span>Diametro (mm)</span><input name="diameter_mm" type="number" min="0" step="0.001"></label>
           <label><span>Lunghezza (mm)</span><input name="length_mm" type="number" min="0" step="0.001"></label>
           <label><span>Taglienti</span><input name="flutes" type="number" min="1" step="1"></label>

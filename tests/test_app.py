@@ -36,6 +36,21 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(5730, cutting["rpm"])
         self.assertEqual(1, len(app.list_tools()[6]["cutting_parameters"]))
 
+    def test_thread_pitch_is_required_and_follows_threading_tool(self):
+        with self.assertRaises(ValueError):
+            app.update_tool(4, {"description": "Maschio M10", "icon": "tap"})
+        tool = app.update_tool(4, {
+            "description": "Maschio M10", "icon": "tap", "thread_pitch_mm": "1.5", "diameter_mm": 10,
+        })
+        self.assertEqual(1.5, tool["thread_pitch_mm"])
+        inventory_id = app.active_to_inventory(4)["inventory_id"]
+        self.assertEqual(1.5, app.list_inventory()[0]["thread_pitch_mm"])
+        app.mount_inventory_tool(inventory_id, 11)
+        self.assertEqual(1.5, app.list_tools()[10]["thread_pitch_mm"])
+        exported = app.export_data()
+        app.restore_export(exported)
+        self.assertEqual(1.5, app.list_tools()[10]["thread_pitch_mm"])
+
     def test_upsert_keeps_one_row_per_material(self):
         app.upsert_cutting(2, {"material": "Alluminio", "vc_m_min": 300})
         app.upsert_cutting(2, {"material": "alluminio", "vc_m_min": 450})
