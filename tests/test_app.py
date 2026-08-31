@@ -276,6 +276,24 @@ class DatabaseTests(unittest.TestCase):
         self.assertTrue(saved["safe_mode"])
         self.assertEqual("192.168.1.50", app.get_visel_settings()["host"])
 
+    def test_global_search_covers_all_magazine_sections(self):
+        app.update_tool(3, {"description": "Fresa montata speciale", "diameter_mm": 10, "t_number": 41})
+        app.upsert_cutting(3, {"material": "Titanio ricerca", "notes": "Parametri prova"})
+        app.update_tool(7, {"description": "Punta storica ricerca", "diameter_mm": 6})
+        uid = app.list_tools()[6]["tool_uid"]
+        app.save_attachment(uid, "catalogo-ricerca.pdf", "application/pdf", b"%PDF-test")
+        app.archive_active_tool(7)
+        inventory = app.create_inventory_tool({"description": "Alesatore Officina ricerca", "diameter_mm": 12})
+        app.save_material_template({"name": "Bronzo ricerca", "vc_m_min": 120})
+
+        self.assertEqual("active", app.global_search("T41")[0]["type"])
+        self.assertTrue(any(item["type"] == "active" for item in app.global_search("Titanio ricerca")))
+        self.assertTrue(any(item["type"] == "history" for item in app.global_search("Punta storica ricerca")))
+        self.assertTrue(any(item["type"] == "document" for item in app.global_search("catalogo-ricerca")))
+        workshop = app.global_search("Alesatore Officina ricerca")
+        self.assertEqual(inventory["inventory_id"], next(item for item in workshop if item["type"] == "inventory")["inventory_id"])
+        self.assertTrue(any(item["type"] == "material" for item in app.global_search("Bronzo ricerca")))
+
 
 if __name__ == "__main__":
     unittest.main()

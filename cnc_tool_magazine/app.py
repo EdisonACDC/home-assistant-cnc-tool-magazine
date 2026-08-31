@@ -583,6 +583,85 @@ def validation_report(tools: list[dict] | None = None) -> dict:
     return {"count": len(warnings), "warnings": warnings, "slots": affected}
 
 
+def global_search(query: str) -> list[dict]:
+    """Search mounted, archived, workshop and material-library data."""
+    needle = str(query or "").strip().casefold()
+    if not needle:
+        return []
+    if len(needle) > 120:
+        raise ValueError("La ricerca è troppo lunga")
+    results: list[dict] = []
+
+    def searchable_tool(tool: dict) -> str:
+        values = [
+            tool.get("description"), tool.get("tool_type"), tool.get("notes"), tool.get("icon"),
+            tool.get("diameter_mm"), tool.get("length_mm"), tool.get("flutes"),
+            f"T{tool.get('t_number')}" if tool.get("t_number") is not None else "",
+            f"D{tool.get('d_offset')}" if tool.get("d_offset") is not None else "",
+            f"H{tool.get('h_offset')}" if tool.get("h_offset") is not None else "",
+        ]
+        for cut in tool.get("cutting_parameters", []):
+            values.extend(cut.get(field) for field in (
+                "material", "coolant", "vc_m_min", "rpm", "fz_mm_tooth", "feed_mm_min", "ap_mm", "ae_mm", "notes"
+            ))
+        return " ".join(str(value) for value in values if value not in (None, "")).casefold()
+
+    def tool_detail(tool: dict) -> str:
+        return (
+            f"T{tool.get('t_number', '—')} · D{tool.get('d_offset', '—')} · "
+            f"H{tool.get('h_offset', '—')} · Ø {tool.get('diameter_mm', '—')} mm"
+        )
+
+    tools = list_tools()
+    for tool in tools:
+        if _tool_is_occupied(tool) and needle in searchable_tool(tool):
+            results.append({
+                "type": "active", "title": tool.get("description") or tool.get("tool_type") or "Utensile montato",
+                "location": f"Posto {tool['slot']}", "detail": tool_detail(tool), "slot": tool["slot"],
+            })
+        for archived in tool.get("history", []):
+            if needle in searchable_tool(archived):
+                results.append({
+                    "type": "history", "title": archived.get("description") or archived.get("tool_type") or "Utensile archiviato",
+                    "location": f"Storico · posto {tool['slot']}", "detail": tool_detail(archived),
+                    "slot": tool["slot"], "history_id": archived["history_id"],
+                })
+        tool_groups = [("active", tool)] + [("history", item) for item in tool.get("history", [])]
+        for kind, item in tool_groups:
+            for attachment in item.get("attachments", []):
+                if needle in attachment.get("original_name", "").casefold():
+                    results.append({
+                        "type": "document", "title": attachment["original_name"],
+                        "location": f"Documento · {'posto' if kind == 'active' else 'storico posto'} {tool['slot']}",
+                        "detail": item.get("description") or item.get("tool_type") or "Utensile",
+                        "slot": tool["slot"], "history_id": item.get("history_id"), "attachment_id": attachment["id"],
+                    })
+    for tool in list_inventory():
+        if needle in searchable_tool(tool):
+            results.append({
+                "type": "inventory", "title": tool.get("description") or tool.get("tool_type") or "Utensile",
+                "location": "Officina", "detail": tool_detail(tool), "inventory_id": tool["inventory_id"],
+            })
+        for attachment in tool.get("attachments", []):
+            if needle in attachment.get("original_name", "").casefold():
+                results.append({
+                    "type": "document", "title": attachment["original_name"], "location": "Documento · Officina",
+                    "detail": tool.get("description") or tool.get("tool_type") or "Utensile",
+                    "inventory_id": tool["inventory_id"], "attachment_id": attachment["id"],
+                })
+    for template in list_material_templates():
+        text = " ".join(str(template.get(field) or "") for field in (
+            "name", "vc_m_min", "fz_mm_tooth", "ap_mm", "ae_mm", "coolant", "notes"
+        )).casefold()
+        if needle in text:
+            results.append({
+                "type": "material", "title": template["name"], "location": "Libreria materiali",
+                "detail": f"Vc {template.get('vc_m_min') or '—'} · Fz {template.get('fz_mm_tooth') or '—'} · ap {template.get('ap_mm') or '—'} · ae {template.get('ae_mm') or '—'}",
+                "template_id": template["id"],
+            })
+    return results[:100]
+
+
 def list_inventory() -> list[dict]:
     with connect() as db:
         rows = db.execute("SELECT * FROM inventory_tools ORDER BY updated_at DESC, id DESC").fetchall()
@@ -1507,6 +1586,13 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/visel":
             self.send_json(get_visel_settings())
+            return
+        if path == "/api/search":
+            query = parse_qs(urlparse(self.path).query).get("q", [""])[0]
+            try:
+                self.send_json({"query": query, "results": global_search(query)})
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
             return
         if path == "/api/export":
             self.send_json(export_data())
