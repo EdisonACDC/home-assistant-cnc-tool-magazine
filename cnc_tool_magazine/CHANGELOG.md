@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.2
+
+- I correttori D e H restano associati all'utensile durante ogni spostamento.
+- Il passaggio in Officina e il successivo rimontaggio non modificano più D e H.
+- Il numero T continua ad aggiornarsi in base alla nuova posizione fisica del magazzino.
+
 ## 1.2.1
 
 - I risultati della ricerca mostrano tutti i parametri di taglio dell'utensile trovato.
