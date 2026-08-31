@@ -4,7 +4,7 @@
 
 # Home Assistant CNC Tool Magazine
 
-[![Version](https://img.shields.io/badge/version-1.3.0-087f74)](https://github.com/EdisonACDC/home-assistant-cnc-tool-magazine/releases)
+[![Version](https://img.shields.io/badge/version-1.4.0-087f74)](https://github.com/EdisonACDC/home-assistant-cnc-tool-magazine/releases)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-add--on-41BDF5)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -19,6 +19,8 @@
 - Descrizione, tipo, diametro, lunghezza, numero di taglienti e note.
 - 17 tipi selezionabili con icone realistiche per frese, punte, maschi, pettini per filetti, alesatori, bareni e tastatori.
 - Passo filettatura per maschi e pettini, con calcolo specifico dell'avanzamento.
+- Tabella macchina A4 in PDF con 30 posti, icone, T/D/H, descrizione e colonne F/S per materiale.
+- Colore della tabella configurabile e memorizzato per ogni tipo di utensile.
 - Parametri di taglio separati per ogni materiale: Vc, giri/min, fz, avanzamento, ap, ae e refrigerante.
 - Un utensile montato per posizione e storico completo degli utensili sostituiti.
 - Ripristino rapido di un utensile archiviato con tutti i suoi parametri.
@@ -81,7 +83,7 @@ Home Assistant CNC tool magazine, CNC tool management, milling machine tool data
 
 ## Versione
 
-Versione corrente: **1.3.0**. Consulta il [changelog](cnc_tool_magazine/CHANGELOG.md) per tutte le modifiche.
+Versione corrente: **1.4.0**. Consulta il [changelog](cnc_tool_magazine/CHANGELOG.md) per tutte le modifiche.
 
 ## Licenza
 

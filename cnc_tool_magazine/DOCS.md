@@ -60,6 +60,7 @@ Il backup completo dell'add-on di Home Assistant include database e file allegat
 ## Esportazione e ripristino
 
 - **Esporta PDF** genera un documento A4 completo con tutte le 30 posizioni, gli utensili montati, l'intero archivio e i parametri di taglio per materiale.
+- **Tabella macchina PDF** apre la configurazione dei colori per tipo utensile e genera un foglio A4 orizzontale pensato per l'operatore. Le righe T1-T30 restano sempre associate ai posti reali; D e H provengono dai correttori salvati. Per ogni materiale sono riportati soltanto F (mm/min) e S (giri/min). Se i materiali sono numerosi, vengono suddivisi automaticamente su più pagine.
 - **Esporta JSON** genera una copia strutturata dei dati per il backup.
 - **Importa JSON** ripristina un backup dopo averlo controllato. Prima del ripristino viene sempre salvata automaticamente una copia dello stato corrente in `/data/backups`.
 

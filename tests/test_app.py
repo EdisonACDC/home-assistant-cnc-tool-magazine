@@ -287,6 +287,22 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(30, len(tools))
         self.assertEqual(1, len(tools[6]["history"]))
 
+    def test_machine_table_pdf_uses_30_slots_materials_and_saved_colors(self):
+        app.update_tool(1, {"description": "Fresa prova", "icon": "end_mill", "d_offset": 41, "h_offset": 51})
+        for index, material in enumerate(("Alluminio", "C45", "Inox", "Ottone", "POM", "Rame", "Titanio"), 1):
+            app.upsert_cutting(1, {"material": material, "feed_mm_min": index * 100, "rpm": index * 1000})
+        saved = app.save_tool_type_colors({"colors": {"end_mill": "#123ABC"}})
+        self.assertEqual("#123ABC", saved["end_mill"])
+        pdf = app.build_machine_table_pdf(
+            app.list_tools(), {"machine_name": "PentaMac / Visel"}, app.list_tool_type_colors(), app.utc_now()
+        )
+        self.assertTrue(pdf.startswith(b"%PDF-"))
+        self.assertGreater(len(pdf), 10000)
+
+    def test_rejects_invalid_machine_table_color(self):
+        with self.assertRaises(ValueError):
+            app.save_tool_type_colors({"colors": {"end_mill": "rosso"}})
+
     def test_validation_reports_duplicate_numbers_and_missing_diameter(self):
         app.update_tool(2, {"description": "Fresa A", "diameter_mm": 10, "t_number": 7, "d_offset": 8, "h_offset": 9})
         app.update_tool(5, {"description": "Fresa B", "t_number": 7, "d_offset": 8, "h_offset": 9})

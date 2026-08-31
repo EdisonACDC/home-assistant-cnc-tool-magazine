@@ -27,6 +27,7 @@ from reportlab.lib.units import mm
 from reportlab.graphics import renderSVG
 from reportlab.graphics.barcode import qr
 from reportlab.graphics.shapes import Drawing
+from reportlab.pdfgen import canvas as pdfcanvas
 from reportlab.platypus import Image, LongTable, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 APP_DIR = Path(__file__).resolve().parent
@@ -70,6 +71,14 @@ TOOL_ICONS = {
     "custom",
 }
 TOOL_ICON_FILES = {"thread_comb": "tap"}
+DEFAULT_TOOL_TYPE_COLORS = {
+    "end_mill": "#2F80ED", "roughing_mill": "#1565C0", "ball_nose": "#56CCF2",
+    "face_mill": "#00897B", "slitting_saw": "#6FCF97", "t_slot": "#27AE60",
+    "dovetail": "#9B51E0", "chamfer": "#BB6BD9", "drill": "#F2994A",
+    "center_drill": "#F2C94C", "tap": "#EB5757", "thread_comb": "#C62828",
+    "reamer": "#FF7043", "boring_bar": "#795548", "engraving": "#607D8B",
+    "probe": "#455A64", "custom": "#7B8794",
+}
 CUTTING_FIELDS = {
     "material",
     "vc_m_min",
@@ -115,6 +124,146 @@ def _tool_icon(icon_name: str) -> Image | str:
     if icon_name and path.is_file():
         return Image(str(path), width=15 * mm, height=15 * mm, kind="proportional")
     return ""
+
+
+def _lighten_hex(value: str, amount: float = 0.82) -> colors.Color:
+    value = value.lstrip("#")
+    red, green, blue = (int(value[index:index + 2], 16) for index in (0, 2, 4))
+    return colors.Color(
+        (red + (255 - red) * amount) / 255,
+        (green + (255 - green) * amount) / 255,
+        (blue + (255 - blue) * amount) / 255,
+    )
+
+
+def _compact_number(value: object) -> str:
+    if value in (None, ""):
+        return ""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
+def build_machine_table_pdf(tools: list[dict], machine: dict, type_colors: dict[str, str], exported_at: str) -> bytes:
+    """Build the printable 30-position machine table with F/S material pairs."""
+    output = BytesIO()
+    page_width, page_height = landscape(A4)
+    pdf = pdfcanvas.Canvas(output, pagesize=(page_width, page_height))
+    pdf.setTitle("CNC - Tabella macchina")
+    pdf.setAuthor("CNC Tool Magazine")
+    by_slot = {int(tool["slot"]): tool for tool in tools}
+    material_names: dict[str, str] = {}
+    for tool in tools:
+        for item in tool.get("cutting_parameters", []):
+            name = str(item.get("material") or "").strip()
+            if name:
+                material_names.setdefault(name.casefold(), name)
+    materials = [material_names[key] for key in sorted(material_names)]
+    chunks = [materials[index:index + 5] for index in range(0, len(materials), 5)] or [[]]
+
+    left = 9 * mm
+    title_y = page_height - 10 * mm
+    table_top = page_height - 24 * mm
+    first_header_height = 6 * mm
+    second_header_height = 5 * mm
+    row_height = 5 * mm
+    base_widths = [10 * mm, 7 * mm, 9 * mm, 9 * mm, 45 * mm]
+    header_color = colors.HexColor("#183748")
+    grid_color = colors.HexColor("#6F7F89")
+
+    def centered_text(value: str, x_start: float, width: float, y: float, font: str = "Helvetica", size: float = 6.2):
+        pdf.setFont(font, size)
+        pdf.drawCentredString(x_start + width / 2, y, value)
+
+    def fit_text(value: str, max_width: float, font: str, size: float) -> str:
+        value = str(value)
+        if pdf.stringWidth(value, font, size) <= max_width:
+            return value
+        while value and pdf.stringWidth(value + "...", font, size) > max_width:
+            value = value[:-1]
+        return value + "..."
+
+    for page_index, material_chunk in enumerate(chunks):
+        continuation = f" - materiali {page_index * 5 + 1}-{page_index * 5 + len(material_chunk)}" if len(chunks) > 1 else ""
+        pdf.setFillColor(colors.HexColor("#183748"))
+        pdf.setFont("Helvetica-Bold", 13)
+        pdf.drawString(left, title_y, f"Tabella utensili macchina{continuation}")
+        pdf.setFillColor(colors.HexColor("#526875"))
+        pdf.setFont("Helvetica", 6.5)
+        pdf.drawString(left, title_y - 4 * mm, f"{machine.get('machine_name') or 'CNC'} - 30 posti - generata {exported_at.replace('T', ' ')}")
+
+        widths = base_widths + [18 * mm] * (len(material_chunk) * 2)
+        x_positions = [left]
+        for width in widths:
+            x_positions.append(x_positions[-1] + width)
+        table_bottom = table_top - first_header_height - second_header_height - row_height * 30
+        pdf.setStrokeColor(grid_color)
+        pdf.setLineWidth(0.35)
+
+        pdf.setFillColor(header_color)
+        pdf.rect(left, table_top - first_header_height - second_header_height, sum(widths), first_header_height + second_header_height, stroke=0, fill=1)
+        pdf.setFillColor(colors.white)
+        fixed_headers = ("Icona", "T", "D", "H", "Descrizione utensile")
+        for index, label in enumerate(fixed_headers):
+            centered_text(label, x_positions[index], widths[index], table_top - 7.2 * mm, "Helvetica-Bold", 6.3)
+        for index, material in enumerate(material_chunk):
+            column = 5 + index * 2
+            pair_width = widths[column] + widths[column + 1]
+            centered_text(fit_text(material, pair_width - 2 * mm, "Helvetica-Bold", 6.3), x_positions[column], pair_width, table_top - 4.1 * mm, "Helvetica-Bold", 6.3)
+            centered_text("F", x_positions[column], widths[column], table_top - 9.2 * mm, "Helvetica-Bold", 6.3)
+            centered_text("S", x_positions[column + 1], widths[column + 1], table_top - 9.2 * mm, "Helvetica-Bold", 6.3)
+
+        for slot in range(1, 31):
+            tool = by_slot.get(slot, {"slot": slot, "cutting_parameters": []})
+            occupied = _tool_is_occupied(tool)
+            icon_name = tool.get("icon", "") if occupied else ""
+            selected = type_colors.get(icon_name, DEFAULT_TOOL_TYPE_COLORS.get(icon_name, "#B0BEC5"))
+            row_top = table_top - first_header_height - second_header_height - (slot - 1) * row_height
+            row_bottom = row_top - row_height
+            pdf.setFillColor(colors.HexColor(selected) if occupied else colors.HexColor("#ECEFF1"))
+            pdf.rect(x_positions[0], row_bottom, widths[0], row_height, stroke=0, fill=1)
+            pdf.setFillColor(_lighten_hex(selected) if occupied else colors.white)
+            pdf.rect(x_positions[1], row_bottom, sum(widths[1:5]), row_height, stroke=0, fill=1)
+            icon_path = WWW_DIR / "tool-icons" / f"{TOOL_ICON_FILES.get(icon_name, icon_name)}.png"
+            if icon_name and icon_path.is_file():
+                pdf.drawImage(str(icon_path), x_positions[0] + 2.9 * mm, row_bottom + .4 * mm, width=4.2 * mm, height=4.2 * mm, preserveAspectRatio=True, mask="auto")
+            pdf.setFillColor(colors.HexColor("#17232D"))
+            text_y = row_bottom + 1.65 * mm
+            centered_text(str(slot), x_positions[1], widths[1], text_y)
+            centered_text(_compact_number(tool.get("d_offset")) if occupied else "", x_positions[2], widths[2], text_y)
+            centered_text(_compact_number(tool.get("h_offset")) if occupied else "", x_positions[3], widths[3], text_y)
+            description = str(tool.get("description") or tool.get("tool_type") or "")
+            pdf.setFont("Helvetica-Bold", 6.2)
+            pdf.drawString(x_positions[4] + 1.2 * mm, text_y, fit_text(description, widths[4] - 2.4 * mm, "Helvetica-Bold", 6.2))
+            cutting_by_name = {
+                str(item.get("material") or "").strip().casefold(): item
+                for item in tool.get("cutting_parameters", [])
+            }
+            for material_index, material in enumerate(material_chunk):
+                cutting = cutting_by_name.get(material.casefold(), {})
+                column = 5 + material_index * 2
+                centered_text(_compact_number(cutting.get("feed_mm_min")), x_positions[column], widths[column], text_y)
+                centered_text(_compact_number(cutting.get("rpm")), x_positions[column + 1], widths[column + 1], text_y)
+
+        pdf.setStrokeColor(grid_color)
+        header_split = table_top - first_header_height
+        for column_index, x in enumerate(x_positions):
+            is_material_middle = column_index >= 6 and column_index % 2 == 0
+            pdf.line(x, table_bottom, x, header_split if is_material_middle else table_top)
+        pdf.line(x_positions[5], header_split, x_positions[-1], header_split)
+        pdf.line(left, table_top, x_positions[-1], table_top)
+        pdf.line(left, table_top - first_header_height - second_header_height, x_positions[-1], table_top - first_header_height - second_header_height)
+        for slot in range(31):
+            y = table_top - first_header_height - second_header_height - slot * row_height
+            pdf.line(left, y, x_positions[-1], y)
+        pdf.setFillColor(colors.HexColor("#526875"))
+        pdf.setFont("Helvetica", 6.5)
+        pdf.drawString(left, 5 * mm, "F = avanzamento mm/min - S = giri/min")
+        pdf.drawRightString(page_width - left, 5 * mm, f"Pagina {page_index + 1}/{len(chunks)}")
+        pdf.showPage()
+
+    pdf.save()
+    return output.getvalue()
 
 
 def build_pdf_report(
@@ -440,6 +589,12 @@ def init_db(slot_count: int = 30) -> None:
                 notes TEXT NOT NULL DEFAULT '',
                 updated_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS tool_type_colors (
+                icon TEXT PRIMARY KEY,
+                color TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
             """
         )
         columns = {row[1] for row in db.execute("PRAGMA table_info(tools)")}
@@ -486,6 +641,10 @@ def init_db(slot_count: int = 30) -> None:
                (id, controller_model, software_version, host, connection_type, notes, updated_at)
                VALUES (1, 'PentaMac', '', '', 'not_configured', '', ?)""",
             (utc_now(),),
+        )
+        db.executemany(
+            "INSERT OR IGNORE INTO tool_type_colors(icon, color, updated_at) VALUES (?, ?, ?)",
+            [(icon, color, utc_now()) for icon, color in DEFAULT_TOOL_TYPE_COLORS.items()],
         )
 
 
@@ -728,6 +887,7 @@ def export_data() -> dict:
         "inventory": list_inventory(),
         "material_templates": list_material_templates(),
         "events": list_events(500),
+        "tool_type_colors": list_tool_type_colors(),
     }
 
 
@@ -1094,8 +1254,12 @@ def restore_export(payload: dict) -> dict:
         })
     raw_templates = payload.get("material_templates", [])
     raw_events = payload.get("events", [])
+    raw_colors = payload.get("tool_type_colors", {})
     if not isinstance(raw_templates, list) or not isinstance(raw_events, list):
         raise ValueError("Libreria materiali o registro movimenti non validi")
+    if not isinstance(raw_colors, dict):
+        raise ValueError("Colori tipi utensile non validi")
+    normalized_colors = _validate_tool_type_colors(raw_colors)
     normalized_templates = []
     for raw in raw_templates:
         if not isinstance(raw, dict) or not raw.get("name"):
@@ -1166,6 +1330,12 @@ def restore_export(payload: dict) -> dict:
                     str(raw["tool_uid"]), str(raw["event_type"]), raw.get("from_slot"), raw.get("to_slot"),
                     str(raw.get("description", "")), str(raw.get("created_at") or utc_now()),
                 ),
+            )
+        for icon, color in normalized_colors.items():
+            db.execute(
+                """INSERT INTO tool_type_colors(icon, color, updated_at) VALUES (?, ?, ?)
+                   ON CONFLICT(icon) DO UPDATE SET color = excluded.color, updated_at = excluded.updated_at""",
+                (icon, color, utc_now()),
             )
 
     return {
@@ -1462,6 +1632,42 @@ def save_visel_settings(payload: dict) -> dict:
     return get_visel_settings()
 
 
+def list_tool_type_colors() -> dict[str, str]:
+    result = dict(DEFAULT_TOOL_TYPE_COLORS)
+    with connect() as db:
+        for row in db.execute("SELECT icon, color FROM tool_type_colors"):
+            if row["icon"] in DEFAULT_TOOL_TYPE_COLORS and re.fullmatch(r"#[0-9A-Fa-f]{6}", row["color"]):
+                result[row["icon"]] = row["color"].upper()
+    return result
+
+
+def _validate_tool_type_colors(payload: dict) -> dict[str, str]:
+    result = {}
+    for icon, color in payload.items():
+        if icon not in DEFAULT_TOOL_TYPE_COLORS:
+            raise ValueError("Tipo utensile non valido nei colori")
+        normalized = str(color or "").strip().upper()
+        if not re.fullmatch(r"#[0-9A-F]{6}", normalized):
+            raise ValueError(f"Colore non valido per {icon}")
+        result[icon] = normalized
+    return result
+
+
+def save_tool_type_colors(payload: dict) -> dict[str, str]:
+    supplied = payload.get("colors")
+    if not isinstance(supplied, dict):
+        raise ValueError("È richiesto l'elenco dei colori")
+    values = _validate_tool_type_colors(supplied)
+    with connect() as db:
+        for icon, color in values.items():
+            db.execute(
+                """INSERT INTO tool_type_colors(icon, color, updated_at) VALUES (?, ?, ?)
+                   ON CONFLICT(icon) DO UPDATE SET color = excluded.color, updated_at = excluded.updated_at""",
+                (icon, color, utc_now()),
+            )
+    return list_tool_type_colors()
+
+
 def attachments_dir() -> Path:
     target = data_dir() / "attachments"
     target.mkdir(parents=True, exist_ok=True)
@@ -1612,6 +1818,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/visel":
             self.send_json(get_visel_settings())
             return
+        if path == "/api/tool-type-colors":
+            self.send_json({"colors": list_tool_type_colors()})
+            return
         if path == "/api/search":
             query = parse_qs(urlparse(self.path).query).get("q", [""])[0]
             try:
@@ -1628,6 +1837,20 @@ class Handler(BaseHTTPRequestHandler):
                 list_tools(), machine_options(), exported_at, list_inventory(), list_material_templates(), list_events(100)
             )
             filename = f"cnc-tool-magazine-{exported_at[:10]}.pdf"
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "application/pdf")
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+            self.send_header("Content-Length", str(len(content)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(content)
+            return
+        if path == "/api/export/machine-table.pdf":
+            exported_at = utc_now()
+            content = build_machine_table_pdf(
+                list_tools(), machine_options(), list_tool_type_colors(), exported_at
+            )
+            filename = f"tabella-utensili-macchina-{exported_at[:10]}.pdf"
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "application/pdf")
             self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
@@ -1688,6 +1911,9 @@ class Handler(BaseHTTPRequestHandler):
             template_match = re.fullmatch(r"/api/material-templates/(\d+)", path)
             if path == "/api/visel":
                 self.send_json(save_visel_settings(payload))
+                return
+            if path == "/api/tool-type-colors":
+                self.send_json({"colors": save_tool_type_colors(payload)})
                 return
             if tool_match:
                 slot = self.valid_slot(tool_match.group(1))

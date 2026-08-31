@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.0
+
+- Nuova esportazione **Tabella macchina PDF** in formato A4 orizzontale.
+- La tabella contiene sempre le righe T1-T30, corrispondenti ai posti fisici della macchina.
+- Per ogni posto mostra icona, correttore D, correttore H e descrizione dell'utensile montato.
+- I materiali vengono raccolti automaticamente da tutti gli utensili montati e mostrano soltanto avanzamento F e giri S.
+- Quando i materiali superano lo spazio disponibile vengono distribuiti su più pagine leggibili.
+- Nuova configurazione persistente del colore per ciascun tipo/icona utensile.
+- I colori personalizzati sono inclusi anche nelle esportazioni e nei ripristini JSON.
+
 ## 1.3.0
 
 - Nuovo campo **Passo filettatura (mm)**, mostrato automaticamente per Maschio e Pettine per filetti.
