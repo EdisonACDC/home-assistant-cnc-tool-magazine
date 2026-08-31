@@ -51,6 +51,21 @@ class DatabaseTests(unittest.TestCase):
         app.restore_export(exported)
         self.assertEqual(1.5, app.list_tools()[10]["thread_pitch_mm"])
 
+    def test_roll_tap_requires_pitch_and_keeps_its_icon(self):
+        with self.assertRaises(ValueError):
+            app.update_tool(5, {"description": "Maschio a rullare M8", "icon": "roll_tap"})
+        tool = app.update_tool(5, {
+            "description": "Maschio a rullare M8", "tool_type": "Maschio a rullare",
+            "icon": "roll_tap", "thread_pitch_mm": "1.25", "diameter_mm": 8,
+        })
+        self.assertEqual("roll_tap", tool["icon"])
+        self.assertEqual(1.25, tool["thread_pitch_mm"])
+        inventory_id = app.active_to_inventory(5)["inventory_id"]
+        app.mount_inventory_tool(inventory_id, 15)
+        mounted = app.list_tools()[14]
+        self.assertEqual("roll_tap", mounted["icon"])
+        self.assertEqual(1.25, mounted["thread_pitch_mm"])
+
     def test_upsert_keeps_one_row_per_material(self):
         app.upsert_cutting(2, {"material": "Alluminio", "vc_m_min": 300})
         app.upsert_cutting(2, {"material": "alluminio", "vc_m_min": 450})

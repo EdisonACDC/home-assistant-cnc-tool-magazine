@@ -53,7 +53,7 @@ Il backup completo dell'add-on di Home Assistant include database e file allegat
 ## Calcoli e riutilizzo dei dati
 
 - **Calcola automaticamente** usa diametro, Vc, numero di taglienti e Fz per calcolare giri e avanzamento. Può anche ricavare Vc o Fz quando sono i valori mancanti.
-- Se scegli l'icona **Maschio** o **Pettine per filetti**, compare il campo obbligatorio **Passo filettatura (mm)**. Per il maschio l'app calcola l'avanzamento sincronizzato `F = S × passo`. Per il pettine calcola `F = S × Z × Fz` e usa il passo come avanzamento assiale per ogni giro dell'interpolazione elicoidale.
+- Se scegli l'icona **Maschio**, **Maschio a rullare** o **Pettine per filetti**, compare il campo obbligatorio **Passo filettatura (mm)**. Per entrambi i tipi di maschio l'app calcola l'avanzamento sincronizzato `F = S × passo`. Per il pettine calcola `F = S × Z × Fz` e usa il passo come avanzamento assiale per ogni giro dell'interpolazione elicoidale.
 - **Duplica** copia l'utensile e i suoi materiali in un'altra posizione. Se la destinazione è occupata, il suo utensile viene prima conservato nello storico.
 - **Copia materiali** importa i parametri da un'altra posizione e aggiorna quelli con lo stesso nome.
 

@@ -63,6 +63,7 @@ TOOL_ICONS = {
     "drill",
     "center_drill",
     "tap",
+    "roll_tap",
     "thread_comb",
     "reamer",
     "boring_bar",
@@ -75,7 +76,8 @@ DEFAULT_TOOL_TYPE_COLORS = {
     "end_mill": "#2F80ED", "roughing_mill": "#1565C0", "ball_nose": "#56CCF2",
     "face_mill": "#00897B", "slitting_saw": "#6FCF97", "t_slot": "#27AE60",
     "dovetail": "#9B51E0", "chamfer": "#BB6BD9", "drill": "#F2994A",
-    "center_drill": "#F2C94C", "tap": "#EB5757", "thread_comb": "#C62828",
+    "center_drill": "#F2C94C", "tap": "#EB5757", "roll_tap": "#D84315",
+    "thread_comb": "#C62828",
     "reamer": "#FF7043", "boring_bar": "#795548", "engraving": "#607D8B",
     "probe": "#455A64", "custom": "#7B8794",
 }
@@ -936,7 +938,7 @@ def update_tool(slot: int, payload: dict) -> dict:
             values["status"] = "to_sharpen"
         merged = row_to_dict(current)
         merged.update(values)
-        if merged.get("icon") in {"tap", "thread_comb"} and not (merged.get("thread_pitch_mm") or 0) > 0:
+        if merged.get("icon") in {"tap", "roll_tap", "thread_comb"} and not (merged.get("thread_pitch_mm") or 0) > 0:
             raise ValueError("Inserisci il passo della filettatura")
         if not current["tool_uid"] and _has_tool_data(merged):
             values["tool_uid"] = uuid.uuid4().hex
@@ -1430,7 +1432,7 @@ def create_inventory_tool(payload: dict) -> dict:
         raise ValueError("Icona o stato utensile non valido")
     if (values["thread_pitch_mm"] or 0) < 0:
         raise ValueError("Il passo della filettatura non può essere negativo")
-    if values["icon"] in {"tap", "thread_comb"} and not (values["thread_pitch_mm"] or 0) > 0:
+    if values["icon"] in {"tap", "roll_tap", "thread_comb"} and not (values["thread_pitch_mm"] or 0) > 0:
         raise ValueError("Inserisci il passo della filettatura")
     if not (values["description"] or values["tool_type"]):
         raise ValueError("Inserisci almeno una descrizione o il tipo utensile")
