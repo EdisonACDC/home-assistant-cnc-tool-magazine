@@ -57,6 +57,10 @@ Il backup completo dell'add-on di Home Assistant include database e file allegat
 - **Duplica** copia l'utensile e i suoi materiali in un'altra posizione. Se la destinazione è occupata, il suo utensile viene prima conservato nello storico.
 - **Copia materiali** importa i parametri da un'altra posizione e aggiorna quelli con lo stesso nome.
 
+## Svuotamento completo del magazzino
+
+Il pulsante **Svuota tutto il magazzino** trasferisce in Officina tutti gli utensili attualmente montati e libera le 30 posizioni macchina. Prima dell'operazione viene richiesta una conferma. Utensili, correttori D/H, parametri dei materiali, allegati, ore, icone e passo filettatura restano conservati; ogni smontaggio viene registrato nei movimenti.
+
 ## Esportazione e ripristino
 
 - **Esporta PDF** genera un documento A4 completo con tutte le 30 posizioni, gli utensili montati, l'intero archivio e i parametri di taglio per materiale.
