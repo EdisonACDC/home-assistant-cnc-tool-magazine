@@ -61,6 +61,8 @@ Il backup completo dell'add-on di Home Assistant include database e file allegat
 
 Il pulsante **Svuota tutto il magazzino** trasferisce in Officina tutti gli utensili attualmente montati e libera le 30 posizioni macchina. Prima dell'operazione viene richiesta una conferma. Utensili, correttori D/H, parametri dei materiali, allegati, ore, icone e passo filettatura restano conservati; ogni smontaggio viene registrato nei movimenti.
 
+Per montare rapidamente un utensile, usa **Monta utensile** direttamente su una posizione macchina libera. Si apre l'elenco degli utensili disponibili in Officina: premi **Monta qui** sull'utensile desiderato per inserirlo nella posizione selezionata.
+
 ## Esportazione e ripristino
 
 - Il pulsante **GESTISCI FILE** apre una finestra che raccoglie Importa JSON, Esporta JSON, Esporta PDF completo, Etichette QR e Tabella utensili PDF.

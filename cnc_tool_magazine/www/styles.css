@@ -72,6 +72,7 @@ textarea { resize: vertical; }
 .tool-card:hover { transform: translateY(-2px); border-color: #476173; }
 .tool-card:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 .tool-card.free { box-shadow: none; opacity: .76; border-style: dashed; }
+.mount-tool-card { width: 100%; margin-top: 1rem; }
 .tool-card.warning { border-color: var(--warning); box-shadow: 0 0 0 2px rgba(244,185,66,.12), var(--shadow); }
 .warning-chip { display: inline-flex; width: fit-content; margin: -.35rem 0 .55rem; padding: .2rem .45rem; border: 1px solid #8a6328; border-radius: 99px; color: #ffd27d; background: rgba(244,185,66,.1); font-size: .68rem; font-weight: 800; }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .9rem; }
@@ -186,6 +187,12 @@ dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
 .inventory-card.highlighted { border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(54,209,196,.16); }
 .inventory-head { display: flex; align-items: center; gap: .65rem; }
 .inventory-head small { display: block; color: var(--muted); margin-top: .2rem; }
+.mount-from-workshop-list { display: grid; gap: .75rem; margin-top: 1rem; }
+.mount-workshop-card { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .85rem; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); }
+.mount-workshop-card .inventory-head { min-width: 0; }
+.mount-workshop-card .button { flex: 0 0 auto; }
+.empty-workshop-choice { padding: 1rem; border: 1px dashed var(--line); border-radius: 11px; color: var(--muted); }
+.empty-workshop-choice p { margin: .35rem 0 0; }
 .inventory-actions { margin-top: auto; flex-wrap: wrap; }
 .template-list, .events-list { display: grid; gap: .55rem; }
 .template-row { display: flex; align-items: center; justify-content: space-between; gap: .7rem; padding: .7rem; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); }
@@ -233,6 +240,8 @@ dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
   .row-actions { grid-column: 1/-1; }
   .section-title { gap: .65rem; }
   .form-actions .button { flex: 1 1 160px; }
+  .mount-workshop-card { align-items: stretch; flex-direction: column; }
+  .mount-workshop-card .button { width: 100%; }
   .form-actions .button.danger { margin-right: 0; }
   .usage-panel { align-items: stretch; flex-direction: column; }
   .usage-actions .button { flex: 1; }

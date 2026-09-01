@@ -20,7 +20,7 @@ Add-on per Home Assistant dedicato alla gestione del magazzino utensili di una f
 - Stato, timer di utilizzo e calcolo automatico della vita residua.
 - QR per aprire direttamente ogni posizione e foglio di etichette stampabile.
 - Magazzino Officina per utensili non montati, con montaggio e spostamento rapido.
-- Correttori D/H visibili e assegnabili nelle schede Officina, con montaggio diretto nella macchina.
+- Correttori D/H visibili e assegnabili nelle schede Officina; nelle posizioni macchina libere il pulsante **Monta utensile** apre direttamente la scelta degli utensili disponibili.
 - Svuotamento completo del magazzino macchina con trasferimento sicuro di tutti gli utensili in Officina.
 - Registro automatico di montaggi, smontaggi, spostamenti e archiviazioni.
 - Libreria modificabile dei materiali con valori di taglio proposti.
