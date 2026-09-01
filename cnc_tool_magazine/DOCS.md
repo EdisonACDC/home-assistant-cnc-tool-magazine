@@ -63,6 +63,7 @@ Il pulsante **Svuota tutto il magazzino** trasferisce in Officina tutti gli uten
 
 ## Esportazione e ripristino
 
+- Il pulsante **GESTISCI FILE** apre una finestra che raccoglie Importa JSON, Esporta JSON, Esporta PDF completo, Etichette QR e Tabella utensili PDF.
 - **Esporta PDF** genera un documento A4 completo con tutte le 30 posizioni, gli utensili montati, l'intero archivio e i parametri di taglio per materiale.
 - **Tabella generale utensili PDF** apre la configurazione dei colori e permette di scegliere il formato orizzontale A4 o A3. Raccoglie tutti gli utensili montati, presenti in Officina e archiviati, ordinandoli per correttore D e poi H nell'intervallo 1-250. La colonna T indica la posizione soltanto per gli utensili attualmente montati. Per ogni materiale sono riportati soltanto F (mm/min) e S (giri/min); materiali e utensili vengono distribuiti automaticamente su più pagine.
 - **Esporta JSON** genera una copia strutturata dei dati per il backup.

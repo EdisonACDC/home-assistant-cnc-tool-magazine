@@ -224,6 +224,19 @@ class DatabaseTests(unittest.TestCase):
         descriptions = [event["description"] for event in app.list_events()]
         self.assertTrue(any("montato nella posizione 12" in text for text in descriptions))
 
+    def test_inventory_tool_can_be_created_with_assigned_offsets(self):
+        created = app.create_inventory_tool({
+            "description": "Fresa preparata in Officina", "icon": "end_mill",
+            "d_offset": 149, "h_offset": 249, "diameter_mm": 12,
+        })
+        stored = next(item for item in app.list_inventory() if item["inventory_id"] == created["inventory_id"])
+        self.assertEqual(149, stored["d_offset"])
+        self.assertEqual(249, stored["h_offset"])
+        app.mount_inventory_tool(created["inventory_id"], 6)
+        mounted = app.list_tools()[5]
+        self.assertEqual(149, mounted["d_offset"])
+        self.assertEqual(249, mounted["h_offset"])
+
     def test_empty_position_moves_tool_to_inventory_without_deleting_it(self):
         app.update_tool(18, {"description": "Fresa da conservare", "diameter_mm": 16, "d_offset": 118, "h_offset": 218})
         app.upsert_cutting(18, {"material": "C45", "vc_m_min": 175})

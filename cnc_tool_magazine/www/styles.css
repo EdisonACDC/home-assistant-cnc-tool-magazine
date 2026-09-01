@@ -176,6 +176,9 @@ dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
 .label-info span { font-size: .75rem; font-weight: 700; }
 .management-dialog { width: min(980px,calc(100% - 1rem)); }
 .management-content { padding: 1.25rem; }
+.file-manager-dialog { width: min(560px,calc(100% - 1rem)); }
+.file-manager-list { display: grid; grid-template-columns: 1fr; gap: .75rem; margin-top: 1rem; }
+.file-manager-list .button { width: 100%; min-height: 52px; text-align: left; }
 .compact-form { padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--line); border-radius: 12px; background: #0f1821; }
 .compact-form h3 { margin-bottom: .8rem; }
 .inventory-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .75rem; }
