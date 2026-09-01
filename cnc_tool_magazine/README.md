@@ -1,10 +1,11 @@
-# CNC Tool Magazine 1.5.0
+# CNC Tool Magazine 1.6.0
 
 Add-on per Home Assistant dedicato alla gestione del magazzino utensili di una fresatrice CNC PentaMac con sistema Visel.
 
 ## Funzioni
 
-- Da 1 a 60 posizioni configurabili, corrispondenti ai posti fisici del magazzino macchina.
+- Da 1 a 250 posizioni configurabili, corrispondenti ai posti fisici del magazzino macchina.
+- Visualizzazione circolare a gruppi da 30, mantenendo sempre leggibile la numerazione reale.
 - Nuova interfaccia CNC virtuale responsive con carosello delle posizioni e scheda rapida dell'utensile selezionato.
 - Riduzione sicura del numero di posizioni con trasferimento automatico in Officina degli utensili e dello storico rimossi dalla macchina.
 - Campi modificabili per numero utensile `T`, correttore diametro `D` e correttore altezza `H`.

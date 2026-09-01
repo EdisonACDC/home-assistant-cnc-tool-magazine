@@ -70,6 +70,11 @@ main { width:min(1280px,100%); margin:0 auto; padding: 1.4rem clamp(1rem,4vw,4re
 .machine-panel-head h2 { margin-bottom:0; }
 .mounted-badge { display:grid; min-width:92px; padding:.55rem .8rem; border-radius:99px; color:#8ac6ff; background:#0d3151; text-align:center; }
 .mounted-badge strong { font-size:1.35rem; }
+.magazine-groups { display:grid; grid-template-columns:48px minmax(150px,230px) 48px; justify-content:center; align-items:end; gap:.6rem; margin:1rem auto 0; }
+.magazine-groups label { display:grid; gap:.3rem; color:var(--muted); font-size:.74rem; text-align:center; }
+.magazine-groups select { min-height:46px; padding:.55rem .75rem; border:1px solid #35515d; border-radius:11px; color:var(--text); background:#0b1820; font-weight:800; text-align:center; }
+.group-arrow { min-height:46px; border:1px solid #35515d; border-radius:11px; color:var(--accent-2); background:#0b1820; font-size:1.8rem; line-height:1; }
+.group-arrow:disabled { opacity:.3; cursor:not-allowed; }
 .magazine-carousel-wrap { display:grid; place-items:center; min-height:520px; overflow:hidden; }
 .magazine-carousel { --carousel-radius:205px; --carousel-inner-radius:152px; position:relative; width:min(470px,92%); aspect-ratio:1; border-radius:50%; background:radial-gradient(circle,#102630 0 28%,#294957 29% 32%,#07151c 33% 70%,#18343f 71% 74%,#0a1d25 75%); box-shadow:inset 0 0 45px rgba(0,0,0,.55),0 20px 55px rgba(0,0,0,.3); }
 .magazine-center { position:absolute; inset:34%; display:grid; place-items:center; align-content:center; gap:.15rem; border:3px solid var(--accent-2); border-radius:50%; color:var(--text); background:#0b1c24; box-shadow:0 0 0 12px rgba(54,209,196,.07); }
@@ -275,6 +280,7 @@ dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
   .primary-actions .button:last-child { grid-column:1/-1; }
   .cnc-dashboard { grid-template-columns:1fr; }
   .machine-magazine-panel, .selected-tool-panel, .tool-list-section { padding:.85rem; border-radius:15px; }
+  .magazine-groups { grid-template-columns:44px minmax(130px,1fr) 44px; }
   .magazine-carousel-wrap { min-height:360px; }
   .magazine-carousel { --carousel-radius:145px; --carousel-inner-radius:106px; width:min(335px,100%); }
   .carousel-slot { --slot-size:30px; }
