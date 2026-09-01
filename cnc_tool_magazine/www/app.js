@@ -1,6 +1,6 @@
 "use strict";
 
-const state = { tools: [], inventory: [], templates: [], events: [], validation: {count:0,warnings:[],slots:[]}, visel: null, activeSlot: null, iconTarget: null };
+const state = { tools: [], inventory: [], templates: [], events: [], validation: {count:0,warnings:[],slots:[]}, visel: null, activeSlot: null, iconTarget: null, mountTargetSlot: null };
 const grid = document.querySelector("#tool-grid");
 const dialog = document.querySelector("#tool-dialog");
 const toolForm = document.querySelector("#tool-form");
@@ -16,6 +16,8 @@ const labelSheet = document.querySelector("#label-sheet");
 const inventoryDialog = document.querySelector("#inventory-dialog");
 const inventoryForm = document.querySelector("#inventory-form");
 const inventoryList = document.querySelector("#inventory-list");
+const mountFromWorkshopDialog = document.querySelector("#mount-from-workshop-dialog");
+const mountFromWorkshopList = document.querySelector("#mount-from-workshop-list");
 const materialLibraryDialog = document.querySelector("#material-library-dialog");
 const templateForm = document.querySelector("#template-form");
 const templateList = document.querySelector("#template-list");
@@ -28,7 +30,7 @@ const viselForm = document.querySelector("#visel-form");
 const searchInput = document.querySelector("#search");
 const searchResults = document.querySelector("#search-results");
 const clearSearchButton = document.querySelector("#clear-search");
-const inventoryFields = ["description","tool_type","icon","diameter_mm","length_mm","thread_pitch_mm","flutes","notes"];
+const inventoryFields = ["description","tool_type","icon","d_offset","h_offset","diameter_mm","length_mm","thread_pitch_mm","flutes","notes"];
 const templateFields = ["name","vc_m_min","fz_mm_tooth","ap_mm","ae_mm","coolant","notes"];
 const fields = ["t_number","d_offset","h_offset","diameter_mm","length_mm","description","tool_type","icon","thread_pitch_mm","flutes","status","usage_hours","life_hours","notes"];
 const cuttingFields = ["id","material","coolant","vc_m_min","rpm","fz_mm_tooth","feed_mm_min","ap_mm","ae_mm","notes"];
@@ -120,6 +122,10 @@ function render() {
   grid.querySelectorAll(".show-material").forEach(button => button.addEventListener("click", event => {
     event.stopPropagation();
     openMaterial(Number(button.closest(".tool-card").dataset.slot), Number(button.dataset.id));
+  }));
+  grid.querySelectorAll(".mount-tool-card").forEach(button => button.addEventListener("click", event => {
+    event.stopPropagation();
+    openMountFromWorkshop(Number(button.closest(".tool-card").dataset.slot));
   }));
 
   const occupied = state.tools.filter(isOccupied).length;
@@ -215,6 +221,7 @@ function toolCard(tool) {
     <p class="measure">Ø ${esc(tool.diameter_mm ?? "—")} mm · L ${esc(tool.length_mm ?? "—")} mm${tool.thread_pitch_mm ? ` · P${esc(tool.thread_pitch_mm)} mm` : ""}${tool.flutes ? ` · Z${esc(tool.flutes)}` : ""}</p>
     <div class="card-life">${life}</div>
     <div class="material-chips">${materials}${tool.history.length ? `<span class="chip">${tool.history.length} storico</span>` : ""}</div>
+    ${occupied ? "" : `<button class="button secondary mount-tool-card" type="button">Monta utensile</button>`}
   </article>`;
 }
 
@@ -686,6 +693,15 @@ document.querySelector("#calculate-cutting").addEventListener("click", () => {
 });
 
 const importFile = document.querySelector("#import-file");
+const fileManagerDialog = document.querySelector("#file-manager-dialog");
+document.querySelector("#manage-files-button").addEventListener("click", () => fileManagerDialog.showModal());
+document.querySelector("#close-file-manager-dialog").addEventListener("click", () => fileManagerDialog.close());
+fileManagerDialog.addEventListener("click", event => {
+  if (event.target.closest(".file-manager-action")) fileManagerDialog.close();
+}, true);
+fileManagerDialog.addEventListener("click", event => {
+  if (event.target === fileManagerDialog) fileManagerDialog.close();
+});
 document.querySelector("#import-button").addEventListener("click", () => {
   importFile.value = "";
   importFile.click();
@@ -784,7 +800,7 @@ function openInventoryDeepLink(id) {
 function renderInventory() {
   inventoryList.innerHTML = state.inventory.length ? state.inventory.map(tool => `
     <article class="inventory-card" data-id="${tool.inventory_id}">
-      <div class="inventory-head">${toolIcon(tool.icon, "history-tool-icon")}<div><strong>${esc(tool.description || tool.tool_type)}</strong><small>${esc(tool.tool_type || "Tipo non indicato")} · Ø ${esc(tool.diameter_mm ?? "—")} mm${tool.thread_pitch_mm ? ` · P${esc(tool.thread_pitch_mm)} mm` : ""} · Z${esc(tool.flutes ?? "—")}</small></div></div>
+      <div class="inventory-head">${toolIcon(tool.icon, "history-tool-icon")}<div><strong>${esc(tool.description || tool.tool_type)}</strong><small>D${esc(tool.d_offset ?? "—")} · H${esc(tool.h_offset ?? "—")} · ${esc(tool.tool_type || "Tipo non indicato")} · Ø ${esc(tool.diameter_mm ?? "—")} mm${tool.thread_pitch_mm ? ` · P${esc(tool.thread_pitch_mm)} mm` : ""} · Z${esc(tool.flutes ?? "—")}</small></div></div>
       <div class="material-chips">${(tool.cutting_parameters || []).map(item => `<span class="chip">${esc(item.material)}</span>`).join("")}</div>
       <div class="inventory-attachments">${attachmentMarkup(tool.attachments || [])}</div>
       <div class="row-actions inventory-actions"><button class="mini-button mount-inventory" type="button">Monta</button><label class="mini-button file-button">Allega<input class="inventory-file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,text/plain" hidden></label><button class="mini-button delete delete-inventory" type="button">Elimina</button></div>
@@ -824,6 +840,36 @@ async function mountInventory(id) {
     toast(`Utensile montato nella posizione ${target}`);
   } catch (error) { toast(error.message, true); }
 }
+
+function renderMountFromWorkshop() {
+  mountFromWorkshopList.innerHTML = state.inventory.length ? state.inventory.map(tool => `
+    <article class="mount-workshop-card" data-id="${tool.inventory_id}">
+      <div class="inventory-head">${toolIcon(tool.icon, "history-tool-icon")}<div><strong>${esc(tool.description || tool.tool_type || "Utensile")}</strong><small>D${esc(tool.d_offset ?? "—")} · H${esc(tool.h_offset ?? "—")} · Ø ${esc(tool.diameter_mm ?? "—")} mm${tool.thread_pitch_mm ? ` · P${esc(tool.thread_pitch_mm)} mm` : ""}</small></div></div>
+      <button class="button mount-workshop-tool" type="button">Monta qui</button>
+    </article>`).join("") : `<div class="empty-workshop-choice"><strong>Nessun utensile disponibile in Officina</strong><p>Aggiungi prima un utensile nella sezione Officina.</p></div>`;
+  mountFromWorkshopList.querySelectorAll(".mount-workshop-tool").forEach(button => button.addEventListener("click", async () => {
+    const inventoryId = Number(button.closest("article").dataset.id);
+    try {
+      await request(`api/inventory/${inventoryId}/mount`, {method:"POST", body:JSON.stringify({target_slot:state.mountTargetSlot})});
+      const target = state.mountTargetSlot;
+      mountFromWorkshopDialog.close();
+      await Promise.all([loadTools(), loadInventory()]);
+      toast(`Utensile montato nella posizione ${target}`);
+    } catch (error) { toast(error.message, true); }
+  }));
+}
+
+function openMountFromWorkshop(slot) {
+  state.mountTargetSlot = slot;
+  document.querySelector("#mount-from-workshop-title").textContent = `Monta utensile nella posizione ${slot}`;
+  renderMountFromWorkshop();
+  mountFromWorkshopDialog.showModal();
+}
+
+document.querySelector("#close-mount-from-workshop-dialog").addEventListener("click", () => mountFromWorkshopDialog.close());
+mountFromWorkshopDialog.addEventListener("click", event => {
+  if (event.target === mountFromWorkshopDialog) mountFromWorkshopDialog.close();
+});
 
 async function removeInventory(id) {
   if (!confirm("Eliminare definitivamente questo utensile dall'Officina?")) return;

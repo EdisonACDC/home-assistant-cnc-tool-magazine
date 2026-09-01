@@ -18,18 +18,13 @@
       </div>
     </div>
     <div class="actions">
-      <input id="import-file" type="file" accept="application/json,.json" hidden>
-      <button class="button secondary" id="import-button">Importa JSON</button>
-      <button class="button secondary" id="labels-button">Etichette QR</button>
       <button class="button secondary" id="inventory-button">Officina</button>
       <button class="button bulk-danger" id="empty-all-button">Svuota tutto il magazzino</button>
       <button class="button secondary" id="materials-library-button">Libreria materiali</button>
       <button class="button secondary" id="events-button">Movimenti</button>
       <button class="button secondary" id="validation-button">Controlli <span id="validation-badge">0</span></button>
       <button class="button secondary" id="visel-button">Visel</button>
-      <button class="button secondary" id="export-button">Esporta JSON</button>
-      <button class="button secondary" id="export-pdf-button">Esporta PDF</button>
-      <button class="button secondary" id="machine-table-button">Tabella utensili PDF</button>
+      <button class="button secondary" id="manage-files-button">GESTISCI FILE</button>
       <button class="button" id="refresh-button">Aggiorna</button>
     </div>
   </header>
@@ -172,6 +167,23 @@
     </div>
   </dialog>
 
+  <dialog id="file-manager-dialog" class="management-dialog file-manager-dialog">
+    <div class="management-content">
+      <div class="dialog-head">
+        <div><p class="eyebrow">Importazione e stampe</p><h2>GESTISCI FILE</h2><p class="subtitle">Backup, rapporti PDF, tabella utensili ed etichette QR.</p></div>
+        <button type="button" class="icon-button" id="close-file-manager-dialog" aria-label="Chiudi">×</button>
+      </div>
+      <input id="import-file" type="file" accept="application/json,.json" hidden>
+      <div class="file-manager-list">
+        <button class="button secondary file-manager-action" id="import-button" type="button">Importa JSON</button>
+        <button class="button secondary file-manager-action" id="export-button" type="button">Esporta JSON</button>
+        <button class="button secondary file-manager-action" id="export-pdf-button" type="button">Esporta PDF completo</button>
+        <button class="button secondary file-manager-action" id="labels-button" type="button">Etichette QR</button>
+        <button class="button secondary file-manager-action" id="machine-table-button" type="button">Tabella utensili PDF</button>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="labels-dialog" class="labels-dialog">
     <div class="labels-dialog-content">
       <div class="dialog-head no-print">
@@ -193,6 +205,8 @@
           <label><span>Tipo</span><input name="tool_type" placeholder="Fresa, punta, maschio…"></label>
           <label><span>Icona</span><select name="icon" id="inventory-icon-select"></select></label>
           <label id="inventory-thread-pitch-field" hidden><span>Passo filettatura (mm)</span><input name="thread_pitch_mm" type="number" min="0" step="0.001" placeholder="Es. 1,5"></label>
+          <label><span>Correttore D</span><input name="d_offset" type="number" min="1" max="250" step="1" placeholder="1-250"></label>
+          <label><span>Correttore H</span><input name="h_offset" type="number" min="1" max="250" step="1" placeholder="1-250"></label>
           <label><span>Diametro (mm)</span><input name="diameter_mm" type="number" min="0" step="0.001"></label>
           <label><span>Lunghezza (mm)</span><input name="length_mm" type="number" min="0" step="0.001"></label>
           <label><span>Taglienti</span><input name="flutes" type="number" min="1" step="1"></label>
@@ -201,6 +215,16 @@
         <div class="form-actions"><button class="button" type="submit">Aggiungi in Officina</button></div>
       </form>
       <div id="inventory-list" class="inventory-list"></div>
+    </div>
+  </dialog>
+
+  <dialog id="mount-from-workshop-dialog" class="management-dialog">
+    <div class="management-content">
+      <div class="dialog-head">
+        <div><p class="eyebrow">Montaggio diretto</p><h2 id="mount-from-workshop-title">Monta utensile</h2><p class="subtitle">Scegli un utensile disponibile in Officina.</p></div>
+        <button type="button" class="icon-button" id="close-mount-from-workshop-dialog" aria-label="Chiudi">×</button>
+      </div>
+      <div id="mount-from-workshop-list" class="mount-from-workshop-list"></div>
     </div>
   </dialog>
 

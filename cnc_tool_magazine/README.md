@@ -1,4 +1,4 @@
-# CNC Tool Magazine 1.4.2
+# CNC Tool Magazine 1.4.3
 
 Add-on per Home Assistant dedicato alla gestione del magazzino utensili di una fresatrice CNC PentaMac con sistema Visel.
 
@@ -12,6 +12,7 @@ Add-on per Home Assistant dedicato alla gestione del magazzino utensili di una f
 - 18 tipi di utensile selezionabili con icone realistiche, compresi maschio a rullare e pettine per filetti.
 - Passo filettatura dedicato per maschi, maschi a rullare e pettini, conservato in Officina e nello storico.
 - Esportazione **Tabella generale PDF** A4 o A3 con tutti gli utensili, icone, correttori D/H 1-250 e parametri F/S.
+- Menu **GESTISCI FILE** che raccoglie backup JSON, PDF, tabella utensili ed etichette QR.
 - Colori personalizzabili e persistenti per ogni tipo di utensile.
 - Popup dei parametri di taglio separato per ogni materiale.
 - Calcolo automatico di giri e avanzamento dai dati dell'utensile e del materiale.
@@ -19,6 +20,7 @@ Add-on per Home Assistant dedicato alla gestione del magazzino utensili di una f
 - Stato, timer di utilizzo e calcolo automatico della vita residua.
 - QR per aprire direttamente ogni posizione e foglio di etichette stampabile.
 - Magazzino Officina per utensili non montati, con montaggio e spostamento rapido.
+- Correttori D/H visibili e assegnabili nelle schede Officina; nelle posizioni macchina libere il pulsante **Monta utensile** apre direttamente la scelta degli utensili disponibili.
 - Svuotamento completo del magazzino macchina con trasferimento sicuro di tutti gli utensili in Officina.
 - Registro automatico di montaggi, smontaggi, spostamenti e archiviazioni.
 - Libreria modificabile dei materiali con valori di taglio proposti.

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.3
+
+- Nuovo pulsante **GESTISCI FILE** che apre una finestra dedicata.
+- Raggruppati Importa JSON, Esporta JSON, Esporta PDF, Etichette QR e Tabella utensili PDF.
+- Rimossi questi cinque pulsanti dalla testata principale per rendere la pagina più ordinata su telefono.
+- Aggiunti i campi correttore D e H durante la creazione di un utensile in Officina.
+- I correttori D/H sono ora visibili direttamente in ogni scheda Officina.
+- Nelle posizioni macchina libere compare il nuovo pulsante **Monta utensile**.
+- Il pulsante apre direttamente la scelta degli utensili disponibili in Officina e li monta nella posizione selezionata, senza entrare prima nella sezione Officina.
+
 ## 1.4.2
 
 - Nuovo pulsante **Svuota tutto il magazzino** con conferma obbligatoria.
