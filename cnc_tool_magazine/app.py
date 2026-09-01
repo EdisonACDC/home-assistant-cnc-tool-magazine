@@ -32,6 +32,9 @@ from reportlab.platypus import Image, LongTable, PageBreak, Paragraph, SimpleDoc
 
 APP_DIR = Path(__file__).resolve().parent
 WWW_DIR = APP_DIR / "www"
+DEFAULT_MAGAZINE_SLOTS = 30
+MIN_MAGAZINE_SLOTS = 1
+MAX_MAGAZINE_SLOTS = 60
 TOOL_FIELDS = {
     "icon",
     "t_number",
@@ -386,7 +389,7 @@ def build_pdf_report(
         ("GRID", (0, 0), (-1, -1), 0.5, line_color), ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
         ("TOPPADDING", (0, 0), (-1, -1), 6),
     ]))
-    story.extend([summary, Spacer(1, 6 * mm), Paragraph("Panoramica delle 30 posizioni", h1)])
+    story.extend([summary, Spacer(1, 6 * mm), Paragraph(f"Panoramica delle {len(tools)} posizioni", h1)])
 
     overview = [[Paragraph(value, centered) for value in
                  ("Pos.", "Occupazione", "T", "D", "H", "Descrizione", "Tipo", "Diametro", "Lunghezza", "Condizione", "Vita", "Archivio")]]
@@ -543,12 +546,101 @@ def connect() -> sqlite3.Connection:
     return db
 
 
-def init_db(slot_count: int = 30) -> None:
+def _migrate_position_constraints(db: sqlite3.Connection) -> None:
+    """Upgrade databases created when machine positions were fixed to 1-30."""
+    schemas = {
+        row["name"]: row["sql"] or ""
+        for row in db.execute(
+            "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name IN ('tools', 'tool_history')"
+        )
+    }
+    if not any("BETWEEN 1 AND 30" in sql.upper() for sql in schemas.values()):
+        return
+    db.commit()
+    db.execute("PRAGMA foreign_keys = OFF")
+    try:
+        db.executescript(
+            f"""
+            BEGIN IMMEDIATE;
+            ALTER TABLE tools RENAME TO tools_legacy_slots;
+            ALTER TABLE cutting_parameters RENAME TO cutting_parameters_legacy_slots;
+            ALTER TABLE tool_history RENAME TO tool_history_legacy_slots;
+
+            CREATE TABLE tools (
+                slot INTEGER PRIMARY KEY CHECK(slot BETWEEN {MIN_MAGAZINE_SLOTS} AND {MAX_MAGAZINE_SLOTS}),
+                t_number INTEGER,
+                d_offset INTEGER,
+                h_offset INTEGER,
+                diameter_mm REAL,
+                length_mm REAL,
+                description TEXT NOT NULL DEFAULT '',
+                tool_type TEXT NOT NULL DEFAULT '',
+                icon TEXT NOT NULL DEFAULT '',
+                thread_pitch_mm REAL,
+                flutes INTEGER,
+                notes TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'in_use',
+                usage_hours REAL NOT NULL DEFAULT 0,
+                life_hours REAL,
+                timer_started_at TEXT,
+                updated_at TEXT,
+                tool_uid TEXT
+            );
+            INSERT INTO tools (
+                slot, t_number, d_offset, h_offset, diameter_mm, length_mm, description, tool_type,
+                icon, thread_pitch_mm, flutes, notes, status, usage_hours, life_hours,
+                timer_started_at, updated_at, tool_uid
+            )
+            SELECT slot, t_number, d_offset, h_offset, diameter_mm, length_mm, description, tool_type,
+                   icon, thread_pitch_mm, flutes, notes, status, usage_hours, life_hours,
+                   timer_started_at, updated_at, tool_uid
+            FROM tools_legacy_slots;
+
+            CREATE TABLE cutting_parameters (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                slot INTEGER NOT NULL REFERENCES tools(slot) ON DELETE CASCADE,
+                material TEXT NOT NULL COLLATE NOCASE,
+                vc_m_min REAL,
+                rpm INTEGER,
+                fz_mm_tooth REAL,
+                feed_mm_min REAL,
+                ap_mm REAL,
+                ae_mm REAL,
+                coolant TEXT NOT NULL DEFAULT '',
+                notes TEXT NOT NULL DEFAULT '',
+                updated_at TEXT NOT NULL,
+                UNIQUE(slot, material)
+            );
+            INSERT INTO cutting_parameters SELECT * FROM cutting_parameters_legacy_slots;
+
+            CREATE TABLE tool_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                slot INTEGER NOT NULL CHECK(slot BETWEEN {MIN_MAGAZINE_SLOTS} AND {MAX_MAGAZINE_SLOTS}),
+                tool_json TEXT NOT NULL,
+                cutting_json TEXT NOT NULL,
+                archived_at TEXT NOT NULL
+            );
+            INSERT INTO tool_history SELECT * FROM tool_history_legacy_slots;
+
+            DROP TABLE cutting_parameters_legacy_slots;
+            DROP TABLE tool_history_legacy_slots;
+            DROP TABLE tools_legacy_slots;
+            COMMIT;
+            """
+        )
+    except Exception:
+        db.execute("ROLLBACK")
+        raise
+    finally:
+        db.execute("PRAGMA foreign_keys = ON")
+
+
+def init_db(slot_count: int = DEFAULT_MAGAZINE_SLOTS) -> None:
     with connect() as db:
         db.executescript(
             """
             CREATE TABLE IF NOT EXISTS tools (
-                slot INTEGER PRIMARY KEY CHECK(slot BETWEEN 1 AND 30),
+                slot INTEGER PRIMARY KEY CHECK(slot BETWEEN 1 AND 60),
                 t_number INTEGER,
                 d_offset INTEGER,
                 h_offset INTEGER,
@@ -585,7 +677,7 @@ def init_db(slot_count: int = 30) -> None:
 
             CREATE TABLE IF NOT EXISTS tool_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                slot INTEGER NOT NULL CHECK(slot BETWEEN 1 AND 30),
+                slot INTEGER NOT NULL CHECK(slot BETWEEN 1 AND 60),
                 tool_json TEXT NOT NULL,
                 cutting_json TEXT NOT NULL,
                 archived_at TEXT NOT NULL
@@ -647,6 +739,12 @@ def init_db(slot_count: int = 30) -> None:
                 color TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS machine_settings (
+                id INTEGER PRIMARY KEY CHECK(id = 1),
+                magazine_slots INTEGER NOT NULL CHECK(magazine_slots BETWEEN 1 AND 60),
+                updated_at TEXT NOT NULL
+            );
             """
         )
         columns = {row[1] for row in db.execute("PRAGMA table_info(tools)")}
@@ -664,9 +762,16 @@ def init_db(slot_count: int = 30) -> None:
             db.execute("ALTER TABLE tools ADD COLUMN tool_uid TEXT")
         if "thread_pitch_mm" not in columns:
             db.execute("ALTER TABLE tools ADD COLUMN thread_pitch_mm REAL")
+        _migrate_position_constraints(db)
+        requested_slots = max(MIN_MAGAZINE_SLOTS, min(MAX_MAGAZINE_SLOTS, int(slot_count)))
+        db.execute(
+            "INSERT OR IGNORE INTO machine_settings(id, magazine_slots, updated_at) VALUES (1, ?, ?)",
+            (requested_slots, utc_now()),
+        )
+        configured_slots = int(db.execute("SELECT magazine_slots FROM machine_settings WHERE id = 1").fetchone()[0])
         db.executemany(
             "INSERT OR IGNORE INTO tools(slot, t_number, d_offset, h_offset) VALUES (?, ?, ?, ?)",
-            ((slot, slot, slot, slot) for slot in range(1, slot_count + 1)),
+            ((slot, slot, slot, slot) for slot in range(1, configured_slots + 1)),
         )
         occupied_rows = db.execute(
             """SELECT slot FROM tools WHERE tool_uid IS NULL AND
@@ -944,15 +1049,90 @@ def export_data() -> dict:
 
 
 def machine_options() -> dict:
-    defaults = {"machine_name": "PentaMac / Visel", "magazine_slots": 30}
+    defaults = {"machine_name": "PentaMac / Visel", "magazine_slots": DEFAULT_MAGAZINE_SLOTS}
     options_path = Path("/data/options.json")
     try:
         supplied = json.loads(options_path.read_text(encoding="utf-8"))
         defaults.update({key: supplied[key] for key in defaults.keys() & supplied.keys()})
     except (OSError, ValueError, TypeError):
         pass
-    defaults["magazine_slots"] = 30
+    try:
+        with connect() as db:
+            row = db.execute("SELECT magazine_slots FROM machine_settings WHERE id = 1").fetchone()
+        if row:
+            defaults["magazine_slots"] = int(row["magazine_slots"])
+    except sqlite3.Error:
+        defaults["magazine_slots"] = DEFAULT_MAGAZINE_SLOTS
     return defaults
+
+
+def resize_magazine(slot_count: int) -> dict:
+    try:
+        requested = int(slot_count)
+    except (TypeError, ValueError):
+        raise ValueError("Il numero di posizioni non è valido") from None
+    if not MIN_MAGAZINE_SLOTS <= requested <= MAX_MAGAZINE_SLOTS:
+        raise ValueError(
+            f"Il numero di posizioni deve essere compreso tra {MIN_MAGAZINE_SLOTS} e {MAX_MAGAZINE_SLOTS}"
+        )
+
+    moved_active = 0
+    moved_history = 0
+    removed_slots: list[int] = []
+    with connect() as db:
+        current_row = db.execute("SELECT magazine_slots FROM machine_settings WHERE id = 1").fetchone()
+        current = int(current_row["magazine_slots"]) if current_row else int(
+            db.execute("SELECT COALESCE(MAX(slot), ?) FROM tools", (DEFAULT_MAGAZINE_SLOTS,)).fetchone()[0]
+        )
+        if requested < current:
+            for slot in range(current, requested, -1):
+                _settle_timer(db, slot)
+                tool, cuts = _active_snapshot(db, slot)
+                if _has_tool_data(tool) or cuts:
+                    if not tool.get("tool_uid"):
+                        tool["tool_uid"] = uuid.uuid4().hex
+                    _store_inventory(db, tool, cuts)
+                    _record_event(
+                        db, tool["tool_uid"], "unmounted",
+                        f"Utensile spostato in Officina perché la posizione {slot} è stata rimossa",
+                        from_slot=slot,
+                    )
+                    moved_active += 1
+                history_rows = db.execute(
+                    "SELECT id, tool_json, cutting_json FROM tool_history WHERE slot = ? ORDER BY id", (slot,)
+                ).fetchall()
+                for history_row in history_rows:
+                    archived_tool = json.loads(history_row["tool_json"])
+                    archived_cuts = json.loads(history_row["cutting_json"])
+                    archived_tool["tool_uid"] = archived_tool.get("tool_uid") or uuid.uuid4().hex
+                    _store_inventory(db, archived_tool, archived_cuts)
+                    _record_event(
+                        db, archived_tool["tool_uid"], "unmounted",
+                        f"Utensile storico spostato in Officina perché la posizione {slot} è stata rimossa",
+                        from_slot=slot,
+                    )
+                    moved_history += 1
+                db.execute("DELETE FROM tool_history WHERE slot = ?", (slot,))
+                db.execute("DELETE FROM tools WHERE slot = ?", (slot,))
+                removed_slots.append(slot)
+        elif requested > current:
+            db.executemany(
+                "INSERT OR IGNORE INTO tools(slot, t_number, d_offset, h_offset) VALUES (?, ?, ?, ?)",
+                ((slot, slot, slot, slot) for slot in range(current + 1, requested + 1)),
+            )
+        db.execute(
+            """INSERT INTO machine_settings(id, magazine_slots, updated_at) VALUES (1, ?, ?)
+               ON CONFLICT(id) DO UPDATE SET magazine_slots = excluded.magazine_slots,
+                                             updated_at = excluded.updated_at""",
+            (requested, utc_now()),
+        )
+    return {
+        "ok": True,
+        "previous_slots": current,
+        "magazine_slots": requested,
+        "removed_slots": sorted(removed_slots),
+        "moved_to_inventory": moved_active + moved_history,
+    }
 
 
 def clean_value(field: str, value):
@@ -1244,14 +1424,25 @@ def _validate_import(payload: dict) -> list[dict]:
     if payload.get("schema_version") != 1:
         raise ValueError("Versione del backup non supportata")
     raw_tools = payload.get("tools")
-    if not isinstance(raw_tools, list) or len(raw_tools) != 30:
-        raise ValueError("Il backup deve contenere esattamente le 30 posizioni")
+    if not isinstance(raw_tools, list) or not MIN_MAGAZINE_SLOTS <= len(raw_tools) <= MAX_MAGAZINE_SLOTS:
+        raise ValueError(
+            f"Il backup deve contenere da {MIN_MAGAZINE_SLOTS} a {MAX_MAGAZINE_SLOTS} posizioni"
+        )
+    slot_count = len(raw_tools)
+    machine_data = payload.get("machine")
+    if isinstance(machine_data, dict) and machine_data.get("magazine_slots") is not None:
+        try:
+            declared_slots = int(machine_data["magazine_slots"])
+        except (TypeError, ValueError):
+            raise ValueError("Numero posizioni del backup non valido") from None
+        if declared_slots != slot_count:
+            raise ValueError("Il numero di posizioni dichiarato non corrisponde ai dati del backup")
     by_slot = {item.get("slot"): item for item in raw_tools if isinstance(item, dict)}
-    if set(by_slot) != set(range(1, 31)):
-        raise ValueError("Le posizioni del backup devono essere uniche e comprese tra 1 e 30")
+    if set(by_slot) != set(range(1, slot_count + 1)):
+        raise ValueError(f"Le posizioni del backup devono essere uniche e comprese tra 1 e {slot_count}")
 
     normalized = []
-    for slot in range(1, 31):
+    for slot in range(1, slot_count + 1):
         raw = by_slot[slot]
         cuts_raw = raw.get("cutting_parameters", [])
         history_raw = raw.get("history", [])
@@ -1336,6 +1527,18 @@ def restore_export(payload: dict) -> dict:
         db.execute("DELETE FROM tool_history")
         db.execute("DELETE FROM inventory_tools")
         db.execute("DELETE FROM tool_events")
+        restored_slots = len(normalized)
+        db.execute("DELETE FROM tools WHERE slot > ?", (restored_slots,))
+        db.executemany(
+            "INSERT OR IGNORE INTO tools(slot, t_number, d_offset, h_offset) VALUES (?, ?, ?, ?)",
+            ((slot, slot, slot, slot) for slot in range(1, restored_slots + 1)),
+        )
+        db.execute(
+            """INSERT INTO machine_settings(id, magazine_slots, updated_at) VALUES (1, ?, ?)
+               ON CONFLICT(id) DO UPDATE SET magazine_slots = excluded.magazine_slots,
+                                             updated_at = excluded.updated_at""",
+            (restored_slots, utc_now()),
+        )
         for item in normalized:
             slot = item["slot"]
             values = {
@@ -1522,7 +1725,8 @@ def empty_all_positions() -> dict:
     inventory_ids: list[int] = []
     moved_slots: list[int] = []
     with connect() as db:
-        for slot in range(1, 31):
+        slots = [int(row["slot"]) for row in db.execute("SELECT slot FROM tools ORDER BY slot")]
+        for slot in slots:
             _settle_timer(db, slot)
             tool, cuts = _active_snapshot(db, slot)
             if not (_has_tool_data(tool) or cuts):
@@ -1992,6 +2196,9 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/visel":
                 self.send_json(save_visel_settings(payload))
                 return
+            if path == "/api/machine":
+                self.send_json(resize_magazine(payload.get("magazine_slots")))
+                return
             if path == "/api/tool-type-colors":
                 self.send_json({"colors": save_tool_type_colors(payload)})
                 return
@@ -2153,8 +2360,9 @@ class Handler(BaseHTTPRequestHandler):
     @staticmethod
     def valid_slot(raw: str) -> int:
         slot = int(raw)
-        if not 1 <= slot <= 30:
-            raise ValueError("La posizione deve essere compresa tra 1 e 30")
+        slot_count = int(machine_options()["magazine_slots"])
+        if not 1 <= slot <= slot_count:
+            raise ValueError(f"La posizione deve essere compresa tra 1 e {slot_count}")
         return slot
 
     def send_static(self, relative: str) -> None:

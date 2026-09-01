@@ -27,6 +27,38 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(30, len(tools))
         self.assertEqual(list(range(1, 31)), [tool["slot"] for tool in tools])
 
+    def test_magazine_position_count_can_be_increased_and_restored(self):
+        result = app.resize_magazine(42)
+        self.assertEqual(30, result["previous_slots"])
+        self.assertEqual(42, result["magazine_slots"])
+        self.assertEqual(list(range(1, 43)), [tool["slot"] for tool in app.list_tools()])
+        self.assertEqual(42, app.machine_options()["magazine_slots"])
+        app.update_tool(42, {"description": "Utensile posizione 42", "diameter_mm": 12})
+        exported = app.export_data()
+        app.resize_magazine(30)
+        app.restore_export(exported)
+        self.assertEqual(42, len(app.list_tools()))
+        self.assertEqual("Utensile posizione 42", app.list_tools()[-1]["description"])
+
+    def test_reducing_positions_moves_active_and_history_to_inventory(self):
+        app.resize_magazine(35)
+        app.update_tool(35, {"description": "Fresa fuori intervallo", "d_offset": 205, "h_offset": 206})
+        app.update_tool(34, {"description": "Punta storica", "icon": "drill"})
+        app.archive_active_tool(34)
+        result = app.resize_magazine(30)
+        self.assertEqual(2, result["moved_to_inventory"])
+        self.assertEqual(30, len(app.list_tools()))
+        inventory = app.list_inventory()
+        self.assertEqual({"Fresa fuori intervallo", "Punta storica"}, {item["description"] for item in inventory})
+        fresa = next(item for item in inventory if item["description"] == "Fresa fuori intervallo")
+        self.assertEqual(205, fresa["d_offset"])
+        self.assertEqual(206, fresa["h_offset"])
+
+    def test_rejects_position_count_outside_supported_range(self):
+        for value in (0, 61, "non valido"):
+            with self.assertRaises(ValueError):
+                app.resize_magazine(value)
+
     def test_updates_tool_and_cutting_parameters(self):
         tool = app.update_tool(7, {"description": "Fresa MD Ø10", "diameter_mm": "10.0", "flutes": "4"})
         self.assertEqual("Fresa MD Ø10", tool["description"])

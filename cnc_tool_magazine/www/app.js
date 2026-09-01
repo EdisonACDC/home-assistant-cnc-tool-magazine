@@ -1,6 +1,6 @@
 "use strict";
 
-const state = { tools: [], inventory: [], templates: [], events: [], validation: {count:0,warnings:[],slots:[]}, visel: null, activeSlot: null, iconTarget: null, mountTargetSlot: null };
+const state = { tools: [], inventory: [], templates: [], events: [], validation: {count:0,warnings:[],slots:[]}, machine: {machine_name:"PentaMac / Visel", magazine_slots:30}, visel: null, activeSlot: null, dashboardSlot: 1, iconTarget: null, mountTargetSlot: null };
 const grid = document.querySelector("#tool-grid");
 const dialog = document.querySelector("#tool-dialog");
 const toolForm = document.querySelector("#tool-form");
@@ -18,6 +18,9 @@ const inventoryForm = document.querySelector("#inventory-form");
 const inventoryList = document.querySelector("#inventory-list");
 const mountFromWorkshopDialog = document.querySelector("#mount-from-workshop-dialog");
 const mountFromWorkshopList = document.querySelector("#mount-from-workshop-list");
+const magazineCarousel = document.querySelector("#magazine-carousel");
+const machineSettingsDialog = document.querySelector("#machine-settings-dialog");
+const machineSettingsForm = document.querySelector("#machine-settings-form");
 const materialLibraryDialog = document.querySelector("#material-library-dialog");
 const templateForm = document.querySelector("#template-form");
 const templateList = document.querySelector("#template-list");
@@ -130,8 +133,55 @@ function render() {
 
   const occupied = state.tools.filter(isOccupied).length;
   document.querySelector("#occupied-count").textContent = occupied;
-  document.querySelector("#free-count").textContent = 30 - occupied;
+  document.querySelector("#free-count").textContent = state.tools.length - occupied;
   document.querySelector("#material-count").textContent = state.tools.reduce((sum, tool) => sum + tool.cutting_parameters.length, 0);
+  renderMagazine(occupied);
+}
+
+function renderMagazine(occupiedCount) {
+  const center = document.querySelector("#magazine-center");
+  magazineCarousel.querySelectorAll(".carousel-slot").forEach(item => item.remove());
+  const total = state.tools.length;
+  const outerCount = total > 30 ? 30 : total;
+  state.tools.forEach(tool => {
+    const button = document.createElement("button");
+    const inInnerRing = total > 30 && tool.slot > 30;
+    const ringIndex = inInnerRing ? tool.slot - 31 : tool.slot - 1;
+    const ringCount = inInnerRing ? total - 30 : outerCount;
+    const issues = state.validation.warnings.some(item => item.slots.includes(tool.slot));
+    button.type = "button";
+    button.className = `carousel-slot ${isOccupied(tool) ? "occupied" : "free"} ${issues ? "warning" : ""} ${tool.slot === state.dashboardSlot ? "selected" : ""} ${total > 36 ? "compact" : ""} ${inInnerRing ? "inner" : ""}`;
+    button.style.setProperty("--slot-angle", `${(ringIndex * 360) / Math.max(ringCount, 1)}deg`);
+    button.textContent = tool.slot;
+    button.setAttribute("aria-label", `Posizione ${tool.slot}: ${isOccupied(tool) ? tool.description || tool.tool_type || "utensile montato" : "libera"}`);
+    button.addEventListener("click", () => {
+      state.dashboardSlot = tool.slot;
+      renderMagazine(occupiedCount);
+    });
+    magazineCarousel.insertBefore(button, center);
+  });
+  document.querySelector("#carousel-occupied-count").textContent = occupiedCount;
+  document.querySelector("#magazine-title").textContent = `${total} ${total === 1 ? "posizione reale" : "posizioni reali"}`;
+  document.querySelector("#magazine-center-count").textContent = `${total} ${total === 1 ? "posto" : "posti"}`;
+  renderDashboardTool();
+}
+
+function renderDashboardTool() {
+  const tool = state.tools.find(item => item.slot === state.dashboardSlot) || state.tools[0];
+  if (!tool) return;
+  state.dashboardSlot = tool.slot;
+  const occupied = isOccupied(tool);
+  document.querySelector("#dashboard-position").textContent = `Posizione ${tool.slot}`;
+  document.querySelector("#dashboard-description").textContent = occupied ? tool.description || tool.tool_type || "Utensile montato" : "Posizione libera";
+  document.querySelector("#dashboard-tool-icon").innerHTML = occupied ? toolIcon(tool.icon, "card-tool-icon") : `<span class="empty-tool-icon">＋</span>`;
+  document.querySelector("#dashboard-t").textContent = tool.t_number ?? "—";
+  document.querySelector("#dashboard-d").textContent = tool.d_offset ?? "—";
+  document.querySelector("#dashboard-h").textContent = tool.h_offset ?? "—";
+  document.querySelector("#dashboard-measure").textContent = occupied ? `Ø ${tool.diameter_mm ?? "—"} mm · L ${tool.length_mm ?? "—"} mm${tool.thread_pitch_mm ? ` · Passo ${tool.thread_pitch_mm} mm` : ""}` : "Nessun utensile montato";
+  document.querySelector("#dashboard-materials").innerHTML = occupied ? tool.cutting_parameters.slice(0, 5).map(item => `<button class="dashboard-material" type="button" data-id="${item.id}"><strong>${esc(item.material)}</strong><span>F ${esc(item.feed_mm_min ?? "—")}</span><span>S ${esc(item.rpm ?? "—")}</span></button>`).join("") : "";
+  document.querySelectorAll("#dashboard-materials .dashboard-material").forEach(button => button.addEventListener("click", () => openMaterial(tool.slot, Number(button.dataset.id))));
+  document.querySelector("#dashboard-open-tool").hidden = !occupied;
+  document.querySelector("#dashboard-mount-tool").hidden = occupied;
 }
 
 const SEARCH_TYPE_LABELS = {active:"Montato", history:"Storico", inventory:"Officina", material:"Materiale", document:"Documento"};
@@ -266,10 +316,14 @@ async function loadTools(showMessage = false) {
       request("api/tools"), request("api/material-templates"), request("api/inventory"), request("api/validation")
     ]);
     state.tools = data.tools;
+    state.machine = data.machine;
+    if (!state.tools.some(tool => tool.slot === state.dashboardSlot)) state.dashboardSlot = state.tools[0]?.slot || 1;
     state.templates = templateData.templates;
     state.inventory = inventoryData.inventory;
     state.validation = validationData;
     document.querySelector("#machine-name").textContent = data.machine.machine_name;
+    document.querySelector("#filter option[value='all']").textContent = `Tutte le ${data.machine.magazine_slots} posizioni`;
+    machineSettingsForm.elements.magazine_slots.value = data.machine.magazine_slots;
     renderTemplateSelect();
     document.querySelector("#inventory-count").textContent = state.inventory.length;
     document.querySelector("#validation-count").textContent = state.validation.count;
@@ -282,7 +336,7 @@ async function loadTools(showMessage = false) {
       const historyId = Number(url.searchParams.get("history")) || null;
       const inventoryId = Number(url.searchParams.get("inventory")) || null;
       if (inventoryId) openInventoryDeepLink(inventoryId);
-      else if (Number.isInteger(slot) && slot >= 1 && slot <= 30) openTool(slot, historyId);
+      else if (Number.isInteger(slot) && slot >= 1 && slot <= state.tools.length) openTool(slot, historyId);
     }
     if (showMessage) toast("Dati aggiornati");
   } catch (error) { toast(error.message, true); }
@@ -587,11 +641,11 @@ document.querySelector("#reset-tool").addEventListener("click", async () => {
 });
 
 document.querySelector("#duplicate-tool").addEventListener("click", async () => {
-  const value = prompt(`In quale posizione vuoi duplicare l'utensile del posto ${state.activeSlot}? Inserisci un numero da 1 a 30.`);
+  const value = prompt(`In quale posizione vuoi duplicare l'utensile del posto ${state.activeSlot}? Inserisci un numero da 1 a ${state.tools.length}.`);
   if (value === null) return;
   const target = Number(value);
-  if (!Number.isInteger(target) || target < 1 || target > 30 || target === state.activeSlot) {
-    toast("Scegli una posizione diversa, compresa tra 1 e 30", true);
+  if (!Number.isInteger(target) || target < 1 || target > state.tools.length || target === state.activeSlot) {
+    toast(`Scegli una posizione diversa, compresa tra 1 e ${state.tools.length}`, true);
     return;
   }
   const destination = state.tools.find(tool => tool.slot === target);
@@ -610,8 +664,8 @@ document.querySelector("#move-tool").addEventListener("click", async () => {
   const value = prompt(`In quale posizione libera vuoi spostare l'utensile del posto ${state.activeSlot}?`);
   if (value === null) return;
   const target = Number(value);
-  if (!Number.isInteger(target) || target < 1 || target > 30 || target === state.activeSlot) {
-    toast("Scegli una posizione diversa, compresa tra 1 e 30", true);
+  if (!Number.isInteger(target) || target < 1 || target > state.tools.length || target === state.activeSlot) {
+    toast(`Scegli una posizione diversa, compresa tra 1 e ${state.tools.length}`, true);
     return;
   }
   if (isOccupied(state.tools.find(tool => tool.slot === target))) {
@@ -628,11 +682,11 @@ document.querySelector("#move-tool").addEventListener("click", async () => {
 });
 
 document.querySelector("#copy-cutting").addEventListener("click", async () => {
-  const value = prompt(`Da quale posizione vuoi copiare i materiali nel posto ${state.activeSlot}? Inserisci un numero da 1 a 30.`);
+  const value = prompt(`Da quale posizione vuoi copiare i materiali nel posto ${state.activeSlot}? Inserisci un numero da 1 a ${state.tools.length}.`);
   if (value === null) return;
   const source = Number(value);
-  if (!Number.isInteger(source) || source < 1 || source > 30 || source === state.activeSlot) {
-    toast("Scegli una posizione di origine diversa, compresa tra 1 e 30", true);
+  if (!Number.isInteger(source) || source < 1 || source > state.tools.length || source === state.activeSlot) {
+    toast(`Scegli una posizione di origine diversa, compresa tra 1 e ${state.tools.length}`, true);
     return;
   }
   if (!confirm("I materiali con lo stesso nome verranno aggiornati; gli altri resteranno invariati. Continuare?")) return;
@@ -712,7 +766,7 @@ importFile.addEventListener("change", async () => {
   try {
     if (file.size > 5_000_000) throw new Error("Il file supera il limite di 5 MB");
     const data = JSON.parse(await file.text());
-    if (data.schema_version !== 1 || !Array.isArray(data.tools) || data.tools.length !== 30) {
+    if (data.schema_version !== 1 || !Array.isArray(data.tools) || data.tools.length < 1 || data.tools.length > 60) {
       throw new Error("Questo non è un backup valido di CNC Tool Magazine");
     }
     const occupied = data.tools.filter(tool => isOccupied({...tool, cutting_parameters:tool.cutting_parameters || []})).length;
@@ -826,10 +880,10 @@ function renderInventory() {
 }
 
 async function mountInventory(id) {
-  const value = prompt("In quale posizione vuoi montare l'utensile? Inserisci un numero da 1 a 30.");
+  const value = prompt(`In quale posizione vuoi montare l'utensile? Inserisci un numero da 1 a ${state.tools.length}.`);
   if (value === null) return;
   const target = Number(value);
-  if (!Number.isInteger(target) || target < 1 || target > 30) return toast("Posizione non valida", true);
+  if (!Number.isInteger(target) || target < 1 || target > state.tools.length) return toast("Posizione non valida", true);
   const occupied = isOccupied(state.tools.find(tool => tool.slot === target));
   if (!confirm(occupied
     ? `La posizione ${target} è occupata. L'utensile presente verrà spostato in Officina. Continuare?`
@@ -902,7 +956,7 @@ document.querySelector("#empty-all-button").addEventListener("click", async () =
     toast("Il magazzino macchina è già vuoto");
     return;
   }
-  if (!confirm(`Spostare tutti i ${occupied} utensili montati in Officina?\n\nLe 30 posizioni macchina verranno liberate. Nessun utensile sarà eliminato.`)) return;
+  if (!confirm(`Spostare tutti i ${occupied} utensili montati in Officina?\n\nLe ${state.tools.length} posizioni macchina verranno liberate. Nessun utensile sarà eliminato.`)) return;
   try {
     const result = await request("api/tools/empty-all", {method:"POST"});
     await loadTools();
@@ -1090,6 +1144,27 @@ function toast(message, error = false) {
 
 document.querySelector("#filter").addEventListener("change", render);
 document.querySelector("#refresh-button").addEventListener("click", () => loadTools(true));
+document.querySelector("#dashboard-open-tool").addEventListener("click", () => openTool(state.dashboardSlot));
+document.querySelector("#dashboard-mount-tool").addEventListener("click", () => openMountFromWorkshop(state.dashboardSlot));
+document.querySelector("#magazine-center").addEventListener("click", () => openTool(state.dashboardSlot));
+document.querySelector("#machine-settings-button").addEventListener("click", () => {
+  machineSettingsForm.elements.magazine_slots.value = state.tools.length;
+  machineSettingsDialog.showModal();
+});
+document.querySelector("#close-machine-settings-dialog").addEventListener("click", () => machineSettingsDialog.close());
+machineSettingsDialog.addEventListener("click", event => { if (event.target === machineSettingsDialog) machineSettingsDialog.close(); });
+machineSettingsForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const requested = Number(machineSettingsForm.elements.magazine_slots.value);
+  if (!Number.isInteger(requested) || requested < 1 || requested > 60) return toast("Inserisci un numero di posizioni da 1 a 60", true);
+  if (requested < state.tools.length && !confirm(`Ridurre il magazzino da ${state.tools.length} a ${requested} posizioni?\n\nGli utensili e lo storico delle posizioni eliminate verranno trasferiti in Officina.`)) return;
+  try {
+    const result = await request("api/machine", {method:"PUT", body:JSON.stringify({magazine_slots:requested})});
+    machineSettingsDialog.close();
+    await loadTools();
+    toast(result.moved_to_inventory ? `${result.magazine_slots} posizioni salvate · ${result.moved_to_inventory} utensili trasferiti in Officina` : `${result.magazine_slots} posizioni salvate`);
+  } catch (error) { toast(error.message, true); }
+});
 document.querySelector("#close-dialog").addEventListener("click", () => dialog.close());
 document.querySelector("#clear-cutting").addEventListener("click", clearCutting);
 document.querySelector("#choose-tool-icon").addEventListener("click", () => openIconPicker("active"));

@@ -10,31 +10,45 @@
 <body>
   <header class="topbar">
     <div class="app-brand">
-      <img class="app-icon" src="static/icon.png" alt="Icona CNC Tool Magazine">
-      <div>
-        <p class="eyebrow" id="machine-name">PentaMac / Visel</p>
-        <h1>Magazzino utensili CNC</h1>
-        <p class="subtitle">Le posizioni 1–30 corrispondono esattamente al magazzino della fresatrice.</p>
-      </div>
+      <span class="app-icon-shell"><img class="app-icon" src="static/icon.png" alt="Icona CNC Tool Magazine"></span>
+      <div><h1>CNC Tool Magazine</h1><p class="subtitle" id="machine-name">PentaMac / Visel</p></div>
     </div>
-    <div class="actions">
-      <button class="button secondary" id="inventory-button">Officina</button>
-      <button class="button bulk-danger" id="empty-all-button">Svuota tutto il magazzino</button>
-      <button class="button secondary" id="materials-library-button">Libreria materiali</button>
-      <button class="button secondary" id="events-button">Movimenti</button>
-      <button class="button secondary" id="validation-button">Controlli <span id="validation-badge">0</span></button>
-      <button class="button secondary" id="visel-button">Visel</button>
-      <button class="button secondary" id="manage-files-button">GESTISCI FILE</button>
-      <button class="button" id="refresh-button">Aggiorna</button>
-    </div>
+    <div class="machine-connection"><span aria-hidden="true"></span><strong>Macchina connessa</strong></div>
   </header>
 
   <main>
     <section class="global-search" aria-label="Ricerca globale">
-      <label for="search"><span class="eyebrow">Cerca in tutto il magazzino</span></label>
-      <div class="global-search-field"><span aria-hidden="true">⌕</span><input id="search" type="search" autocomplete="off" placeholder="Cerca utensili, T/D/H, storico, Officina, materiali o documenti…"><button id="clear-search" type="button" aria-label="Cancella ricerca" hidden>×</button></div>
-      <p class="global-search-help">La ricerca comprende posti montati, storico, Officina, libreria materiali e nomi degli allegati.</p>
+      <div class="global-search-field"><span aria-hidden="true">⌕</span><input id="search" type="search" autocomplete="off" placeholder="Cerca utensile, T, D, H o materiale…"><button id="clear-search" type="button" aria-label="Cancella ricerca" hidden>×</button></div>
       <section id="search-results" class="search-results" aria-live="polite" hidden></section>
+    </section>
+
+    <section class="primary-actions" aria-label="Comandi principali">
+      <button class="button secondary" id="manage-files-button">▣ Gestisci file</button>
+      <button class="button secondary" id="inventory-button">▤ Officina</button>
+      <button class="button secondary" id="machine-settings-button">⚙ Impostazioni</button>
+    </section>
+
+    <section class="cnc-dashboard" aria-label="Magazzino macchina virtuale">
+      <div class="machine-magazine-panel">
+        <div class="machine-panel-head">
+          <div><p class="eyebrow">Magazzino macchina</p><h2 id="magazine-title">30 posizioni reali</h2></div>
+          <span class="mounted-badge"><strong id="carousel-occupied-count">0</strong> montati</span>
+        </div>
+        <div class="magazine-carousel-wrap">
+          <div id="magazine-carousel" class="magazine-carousel" aria-label="Selettore delle posizioni macchina">
+            <button id="magazine-center" class="magazine-center" type="button" aria-label="Apri posizione selezionata"><span aria-hidden="true">↻</span><strong>ATC</strong><small id="magazine-center-count">30 posti</small></button>
+          </div>
+        </div>
+        <div class="carousel-legend"><span><i class="legend-dot occupied"></i>Montato</span><span><i class="legend-dot free"></i>Libero</span><span><i class="legend-dot warning"></i>Controllo</span></div>
+      </div>
+
+      <aside id="selected-tool-panel" class="selected-tool-panel" aria-live="polite">
+        <div class="selected-tool-head"><span id="dashboard-tool-icon" class="dashboard-tool-icon"></span><div><p class="eyebrow" id="dashboard-position">Posizione 1</p><h2 id="dashboard-description">Posizione libera</h2></div></div>
+        <div class="dashboard-offsets"><span>T<strong id="dashboard-t">1</strong></span><span>D<strong id="dashboard-d">1</strong></span><span>H<strong id="dashboard-h">1</strong></span></div>
+        <p class="dashboard-measure" id="dashboard-measure">Nessun utensile montato</p>
+        <div id="dashboard-materials" class="dashboard-materials"></div>
+        <div class="dashboard-actions"><button class="button" id="dashboard-open-tool" type="button">Apri scheda</button><button class="button secondary" id="dashboard-mount-tool" type="button">Monta utensile</button></div>
+      </aside>
     </section>
 
     <section class="summary" aria-label="Riepilogo">
@@ -42,22 +56,23 @@
       <article><strong id="free-count">30</strong><span>posti liberi</span></article>
       <article><strong id="material-count">0</strong><span>parametri materiali</span></article>
       <article><strong id="inventory-count">0</strong><span>utensili in Officina</span></article>
-      <article><strong id="validation-count">0</strong><span>segnalazioni da controllare</span></article>
+      <article><strong id="validation-count">0</strong><span>segnalazioni</span></article>
     </section>
 
-    <section class="toolbar filter-toolbar">
-      <label>
-        <span>Visualizza</span>
-        <select id="filter">
-          <option value="all">Tutti i 30 posti</option>
-          <option value="occupied">Solo occupati</option>
-          <option value="free">Solo liberi</option>
-        </select>
-      </label>
+    <section class="utility-actions" aria-label="Comandi macchina">
+      <button class="button bulk-danger" id="empty-all-button">Svuota tutto il magazzino</button>
+      <button class="button secondary" id="materials-library-button">Libreria materiali</button>
+      <button class="button secondary" id="events-button">Movimenti</button>
+      <button class="button secondary" id="validation-button">Controlli <span id="validation-badge">0</span></button>
+      <button class="button secondary" id="visel-button">Visel</button>
+      <button class="button" id="refresh-button">Aggiorna</button>
     </section>
 
-    <section id="tool-grid" class="tool-grid" aria-live="polite"></section>
-    <p id="empty-state" class="empty-state" hidden>Nessun utensile corrisponde alla ricerca.</p>
+    <section class="tool-list-section">
+      <div class="list-heading"><div><p class="eyebrow">Elenco completo</p><h2>Tutte le posizioni</h2></div><label><span>Visualizza</span><select id="filter"><option value="all">Tutte le posizioni</option><option value="occupied">Solo occupati</option><option value="free">Solo liberi</option></select></label></div>
+      <section id="tool-grid" class="tool-grid" aria-live="polite"></section>
+      <p id="empty-state" class="empty-state" hidden>Nessun utensile corrisponde alla ricerca.</p>
+    </section>
   </main>
 
   <dialog id="tool-dialog">
@@ -184,13 +199,27 @@
     </div>
   </dialog>
 
+  <dialog id="machine-settings-dialog" class="management-dialog machine-settings-dialog">
+    <div class="management-content">
+      <div class="dialog-head">
+        <div><p class="eyebrow">Configurazione macchina</p><h2>Numero posizioni</h2><p class="subtitle">Adatta il magazzino virtuale alla fresatrice.</p></div>
+        <button type="button" class="icon-button" id="close-machine-settings-dialog" aria-label="Chiudi">×</button>
+      </div>
+      <form id="machine-settings-form" class="compact-form">
+        <label><span>Posizioni del magazzino macchina</span><input name="magazine_slots" type="number" min="1" max="60" step="1" required></label>
+        <div class="safe-notice"><strong>Riduzione sicura</strong><p>Se riduci il numero, gli utensili e lo storico delle posizioni eliminate vengono trasferiti automaticamente in Officina.</p></div>
+        <div class="form-actions"><button class="button" type="submit">Salva numero posizioni</button></div>
+      </form>
+    </div>
+  </dialog>
+
   <dialog id="labels-dialog" class="labels-dialog">
     <div class="labels-dialog-content">
       <div class="dialog-head no-print">
         <div><p class="eyebrow">Etichette utensili</p><h2>Etichette QR stampabili</h2><p class="subtitle">Ogni QR apre direttamente la posizione corrispondente.</p></div>
         <button type="button" class="icon-button" id="close-labels-dialog" aria-label="Chiudi">×</button>
       </div>
-      <div class="label-actions no-print"><button class="button secondary" id="show-all-labels" type="button">Mostra tutti i 30 posti</button><button class="button" id="print-labels" type="button">Stampa etichette</button></div>
+      <div class="label-actions no-print"><button class="button secondary" id="show-all-labels" type="button">Mostra tutte le posizioni</button><button class="button" id="print-labels" type="button">Stampa etichette</button></div>
       <section id="label-sheet" class="label-sheet"></section>
     </div>
   </dialog>
