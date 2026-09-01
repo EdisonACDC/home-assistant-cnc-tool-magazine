@@ -51,6 +51,21 @@ class DatabaseTests(unittest.TestCase):
         app.restore_export(exported)
         self.assertEqual(1.5, app.list_tools()[10]["thread_pitch_mm"])
 
+    def test_roll_tap_requires_pitch_and_keeps_its_icon(self):
+        with self.assertRaises(ValueError):
+            app.update_tool(5, {"description": "Maschio a rullare M8", "icon": "roll_tap"})
+        tool = app.update_tool(5, {
+            "description": "Maschio a rullare M8", "tool_type": "Maschio a rullare",
+            "icon": "roll_tap", "thread_pitch_mm": "1.25", "diameter_mm": 8,
+        })
+        self.assertEqual("roll_tap", tool["icon"])
+        self.assertEqual(1.25, tool["thread_pitch_mm"])
+        inventory_id = app.active_to_inventory(5)["inventory_id"]
+        app.mount_inventory_tool(inventory_id, 15)
+        mounted = app.list_tools()[14]
+        self.assertEqual("roll_tap", mounted["icon"])
+        self.assertEqual(1.25, mounted["thread_pitch_mm"])
+
     def test_upsert_keeps_one_row_per_material(self):
         app.upsert_cutting(2, {"material": "Alluminio", "vc_m_min": 300})
         app.upsert_cutting(2, {"material": "alluminio", "vc_m_min": 450})
@@ -287,17 +302,38 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(30, len(tools))
         self.assertEqual(1, len(tools[6]["history"]))
 
-    def test_machine_table_pdf_uses_30_slots_materials_and_saved_colors(self):
+    def test_machine_table_pdf_includes_all_tools_sorted_by_corrector_in_a4_and_a3(self):
         app.update_tool(1, {"description": "Fresa prova", "icon": "end_mill", "d_offset": 41, "h_offset": 51})
         for index, material in enumerate(("Alluminio", "C45", "Inox", "Ottone", "POM", "Rame", "Titanio"), 1):
             app.upsert_cutting(1, {"material": material, "feed_mm_min": index * 100, "rpm": index * 1000})
+        app.update_tool(2, {"description": "Punta storica", "icon": "drill", "d_offset": 12, "h_offset": 22})
+        app.archive_active_tool(2)
+        app.create_inventory_tool({"description": "Alesatore Officina", "icon": "reamer", "d_offset": 8, "h_offset": 18})
         saved = app.save_tool_type_colors({"colors": {"end_mill": "#123ABC"}})
         self.assertEqual("#123ABC", saved["end_mill"])
-        pdf = app.build_machine_table_pdf(
-            app.list_tools(), {"machine_name": "PentaMac / Visel"}, app.list_tool_type_colors(), app.utc_now()
+        entries = app.machine_table_entries(app.list_tools(), app.list_inventory())
+        self.assertEqual([8, 12, 41], [item["d_offset"] for item in entries])
+        self.assertEqual(["Officina", "Archivio", "Macchina"], [item["table_location"] for item in entries])
+        pdf_a4 = app.build_machine_table_pdf(
+            app.list_tools(), app.list_inventory(), {"machine_name": "PentaMac / Visel"},
+            app.list_tool_type_colors(), app.utc_now(), "A4",
         )
-        self.assertTrue(pdf.startswith(b"%PDF-"))
-        self.assertGreater(len(pdf), 10000)
+        pdf_a3 = app.build_machine_table_pdf(
+            app.list_tools(), app.list_inventory(), {"machine_name": "PentaMac / Visel"},
+            app.list_tool_type_colors(), app.utc_now(), "A3",
+        )
+        self.assertTrue(pdf_a4.startswith(b"%PDF-"))
+        self.assertTrue(pdf_a3.startswith(b"%PDF-"))
+        self.assertIn(b"841.8898 595.2756", pdf_a4)
+        self.assertIn(b"1190.551 841.8898", pdf_a3)
+        self.assertGreater(len(pdf_a4), 10000)
+        self.assertGreater(len(pdf_a3), 10000)
+
+    def test_machine_table_rejects_unknown_paper_format(self):
+        with self.assertRaises(ValueError):
+            app.build_machine_table_pdf(
+                app.list_tools(), app.list_inventory(), {}, app.list_tool_type_colors(), app.utc_now(), "A2"
+            )
 
     def test_rejects_invalid_machine_table_color(self):
         with self.assertRaises(ValueError):

@@ -53,14 +53,14 @@ Il backup completo dell'add-on di Home Assistant include database e file allegat
 ## Calcoli e riutilizzo dei dati
 
 - **Calcola automaticamente** usa diametro, Vc, numero di taglienti e Fz per calcolare giri e avanzamento. Può anche ricavare Vc o Fz quando sono i valori mancanti.
-- Se scegli l'icona **Maschio** o **Pettine per filetti**, compare il campo obbligatorio **Passo filettatura (mm)**. Per il maschio l'app calcola l'avanzamento sincronizzato `F = S × passo`. Per il pettine calcola `F = S × Z × Fz` e usa il passo come avanzamento assiale per ogni giro dell'interpolazione elicoidale.
+- Se scegli l'icona **Maschio**, **Maschio a rullare** o **Pettine per filetti**, compare il campo obbligatorio **Passo filettatura (mm)**. Per entrambi i tipi di maschio l'app calcola l'avanzamento sincronizzato `F = S × passo`. Per il pettine calcola `F = S × Z × Fz` e usa il passo come avanzamento assiale per ogni giro dell'interpolazione elicoidale.
 - **Duplica** copia l'utensile e i suoi materiali in un'altra posizione. Se la destinazione è occupata, il suo utensile viene prima conservato nello storico.
 - **Copia materiali** importa i parametri da un'altra posizione e aggiorna quelli con lo stesso nome.
 
 ## Esportazione e ripristino
 
 - **Esporta PDF** genera un documento A4 completo con tutte le 30 posizioni, gli utensili montati, l'intero archivio e i parametri di taglio per materiale.
-- **Tabella macchina PDF** apre la configurazione dei colori per tipo utensile e genera un foglio A4 orizzontale pensato per l'operatore. Le righe T1-T30 restano sempre associate ai posti reali; D e H provengono dai correttori salvati. Per ogni materiale sono riportati soltanto F (mm/min) e S (giri/min). Se i materiali sono numerosi, vengono suddivisi automaticamente su più pagine.
+- **Tabella generale utensili PDF** apre la configurazione dei colori e permette di scegliere il formato orizzontale A4 o A3. Raccoglie tutti gli utensili montati, presenti in Officina e archiviati, ordinandoli per correttore D e poi H nell'intervallo 1-250. La colonna T indica la posizione soltanto per gli utensili attualmente montati. Per ogni materiale sono riportati soltanto F (mm/min) e S (giri/min); materiali e utensili vengono distribuiti automaticamente su più pagine.
 - **Esporta JSON** genera una copia strutturata dei dati per il backup.
 - **Importa JSON** ripristina un backup dopo averlo controllato. Prima del ripristino viene sempre salvata automaticamente una copia dello stato corrente in `/data/backups`.
 

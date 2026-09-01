@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.1
+
+- Aggiunto **Maschio a rullare** come tipo utensile selezionabile con icona realistica dedicata.
+- Il tipo utensile viene compilato automaticamente dalla nuova icona.
+- Il passo filettatura è obbligatorio e viene conservato durante spostamenti, Officina, archivio ed esportazioni.
+- L'avanzamento viene calcolato automaticamente con la formula sincronizzata `F = S × passo`.
+- Aggiunto un colore personalizzabile separato per il maschio a rullare nella tabella macchina PDF.
+- La tabella generale raccoglie tutti gli utensili montati, in Officina e nello storico, ordinandoli per correttori D/H da 1 a 250.
+- Aggiunta la scelta del formato di stampa orizzontale **A4** o **A3**.
+
 ## 1.4.0
 
 - Nuova esportazione **Tabella macchina PDF** in formato A4 orizzontale.

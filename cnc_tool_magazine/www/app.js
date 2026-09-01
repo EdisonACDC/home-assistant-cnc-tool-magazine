@@ -44,6 +44,7 @@ const TOOL_ICONS = [
   {id:"drill", label:"Punta da trapano"},
   {id:"center_drill", label:"Punta a centrare"},
   {id:"tap", label:"Maschio"},
+  {id:"roll_tap", label:"Maschio a rullare"},
   {id:"thread_comb", label:"Pettine per filetti", asset:"tap"},
   {id:"reamer", label:"Alesatore"},
   {id:"boring_bar", label:"Bareno"},
@@ -76,7 +77,7 @@ function setToolTypeFromIcon(form, icon) {
 }
 
 function isThreadingIcon(icon) {
-  return icon === "tap" || icon === "thread_comb";
+  return icon === "tap" || icon === "roll_tap" || icon === "thread_comb";
 }
 
 function updateThreadPitchVisibility(form, fieldId) {
@@ -661,7 +662,7 @@ document.querySelector("#calculate-cutting").addEventListener("click", () => {
     cuttingForm.elements.vc_m_min.value = vc.toFixed(1);
     calculated = true;
   }
-  if (icon === "tap" && rpm > 0 && pitch > 0) {
+  if ((icon === "tap" || icon === "roll_tap") && rpm > 0 && pitch > 0) {
     feed = rpm * pitch;
     cuttingForm.elements.feed_mm_min.value = feed.toFixed(1);
     calculated = true;
@@ -676,6 +677,8 @@ document.querySelector("#calculate-cutting").addEventListener("click", () => {
   }
   const message = icon === "tap"
     ? `Maschio: F = S × passo${pitch > 0 ? ` (${pitch} mm)` : ""}. Controlla i valori prima di salvarli`
+    : icon === "roll_tap"
+      ? `Maschio a rullare: F = S × passo${pitch > 0 ? ` (${pitch} mm)` : ""}. Controlla i valori prima di salvarli`
     : icon === "thread_comb"
       ? `Pettine: F = S × Z × Fz; passo elica ${pitch || "non inserito"} mm per giro di interpolazione`
       : "Giri e avanzamento calcolati: controlla i valori prima di salvarli";
@@ -1001,15 +1004,16 @@ machineTableForm.addEventListener("submit", async event => {
   event.preventDefault();
   try {
     await saveTableColors(false);
-    const response = await fetch("api/export/machine-table.pdf");
+    const paperFormat = machineTableForm.elements.paper_format.value;
+    const response = await fetch(`api/export/machine-table.pdf?format=${encodeURIComponent(paperFormat)}`);
     if (!response.ok) throw new Error(`Errore HTTP ${response.status}`);
     const blob = await response.blob();
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `tabella-utensili-macchina-${new Date().toISOString().slice(0,10)}.pdf`;
+    link.download = `tabella-generale-utensili-${paperFormat.toLowerCase()}-${new Date().toISOString().slice(0,10)}.pdf`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-    toast("Tabella macchina PDF generata");
+    toast(`Tabella generale PDF ${paperFormat} generata`);
   } catch (error) { toast(error.message, true); }
 });
 
