@@ -19,7 +19,7 @@
 - Descrizione, tipo, diametro, lunghezza, numero di taglienti e note.
 - 18 tipi selezionabili con icone realistiche per frese, punte, maschi, maschi a rullare, pettini per filetti, alesatori, bareni e tastatori.
 - Passo filettatura per maschi e pettini, con calcolo specifico dell'avanzamento.
-- Tabella macchina A4 in PDF con 30 posti, icone, T/D/H, descrizione e colonne F/S per materiale.
+- Tabella generale A4/A3 in PDF con tutti gli utensili, correttori D/H 1-250, descrizione e colonne F/S per materiale.
 - Colore della tabella configurabile e memorizzato per ogni tipo di utensile.
 - Parametri di taglio separati per ogni materiale: Vc, giri/min, fz, avanzamento, ap, ae e refrigerante.
 - Un utensile montato per posizione e storico completo degli utensili sostituiti.

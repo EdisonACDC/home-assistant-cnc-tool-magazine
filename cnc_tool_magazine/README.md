@@ -11,7 +11,7 @@ Add-on per Home Assistant dedicato alla gestione del magazzino utensili di una f
 - Un utensile attivo per posizione, con storico degli utensili sostituiti e possibilità di rimontarli.
 - 18 tipi di utensile selezionabili con icone realistiche, compresi maschio a rullare e pettine per filetti.
 - Passo filettatura dedicato per maschi, maschi a rullare e pettini, conservato in Officina e nello storico.
-- Esportazione **Tabella macchina PDF** A4 con i 30 posti, icone, correttori e parametri F/S.
+- Esportazione **Tabella generale PDF** A4 o A3 con tutti gli utensili, icone, correttori D/H 1-250 e parametri F/S.
 - Colori personalizzabili e persistenti per ogni tipo di utensile.
 - Popup dei parametri di taglio separato per ogni materiale.
 - Calcolo automatico di giri e avanzamento dai dati dell'utensile e del materiale.

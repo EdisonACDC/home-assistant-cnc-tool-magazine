@@ -21,7 +21,7 @@ from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.pagesizes import A3, A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.graphics import renderSVG
@@ -146,22 +146,62 @@ def _compact_number(value: object) -> str:
     return str(value)
 
 
-def build_machine_table_pdf(tools: list[dict], machine: dict, type_colors: dict[str, str], exported_at: str) -> bytes:
-    """Build the printable 30-position machine table with F/S material pairs."""
+def machine_table_entries(tools: list[dict], inventory: list[dict]) -> list[dict]:
+    """Collect every created tool and sort it by D/H correctors from 1 to 250."""
+    entries: list[dict] = []
+    for active in tools:
+        if _tool_is_occupied(active):
+            item = dict(active)
+            item.update({"table_location": "Macchina", "table_t": active.get("slot")})
+            entries.append(item)
+        for archived in active.get("history", []):
+            item = dict(archived)
+            item.update({"table_location": "Archivio", "table_t": None})
+            entries.append(item)
+    for stored in inventory:
+        item = dict(stored)
+        item.update({"table_location": "Officina", "table_t": None})
+        entries.append(item)
+
+    def corrector(value: object) -> int:
+        try:
+            number = int(value)
+        except (TypeError, ValueError):
+            return 251
+        return number if 1 <= number <= 250 else 251
+
+    return sorted(entries, key=lambda item: (
+        corrector(item.get("d_offset")), corrector(item.get("h_offset")),
+        str(item.get("description") or item.get("tool_type") or "").casefold(),
+    ))
+
+
+def build_machine_table_pdf(
+    tools: list[dict], inventory: list[dict], machine: dict, type_colors: dict[str, str],
+    exported_at: str, paper_format: str = "A4",
+) -> bytes:
+    """Build the printable all-tools table with D/H correctors and F/S material pairs."""
+    paper_format = paper_format.upper()
+    if paper_format not in {"A3", "A4"}:
+        raise ValueError("Formato carta non valido")
     output = BytesIO()
-    page_width, page_height = landscape(A4)
+    page_width, page_height = landscape(A3 if paper_format == "A3" else A4)
     pdf = pdfcanvas.Canvas(output, pagesize=(page_width, page_height))
-    pdf.setTitle("CNC - Tabella macchina")
+    pdf.setTitle("CNC - Tabella generale utensili")
     pdf.setAuthor("CNC Tool Magazine")
-    by_slot = {int(tool["slot"]): tool for tool in tools}
+    entries = machine_table_entries(tools, inventory)
     material_names: dict[str, str] = {}
-    for tool in tools:
+    for tool in entries:
         for item in tool.get("cutting_parameters", []):
             name = str(item.get("material") or "").strip()
             if name:
                 material_names.setdefault(name.casefold(), name)
     materials = [material_names[key] for key in sorted(material_names)]
-    chunks = [materials[index:index + 5] for index in range(0, len(materials), 5)] or [[]]
+    material_limit = 8 if paper_format == "A3" else 5
+    row_limit = 45 if paper_format == "A3" else 30
+    material_chunks = [materials[index:index + material_limit] for index in range(0, len(materials), material_limit)] or [[]]
+    row_chunks = [entries[index:index + row_limit] for index in range(0, len(entries), row_limit)] or [[]]
+    pages = [(material_chunk, row_chunk) for material_chunk in material_chunks for row_chunk in row_chunks]
 
     left = 9 * mm
     title_y = page_height - 10 * mm
@@ -169,7 +209,7 @@ def build_machine_table_pdf(tools: list[dict], machine: dict, type_colors: dict[
     first_header_height = 6 * mm
     second_header_height = 5 * mm
     row_height = 5 * mm
-    base_widths = [10 * mm, 7 * mm, 9 * mm, 9 * mm, 45 * mm]
+    base_widths = [10 * mm, 7 * mm, 9 * mm, 9 * mm, 45 * mm, 16 * mm]
     header_color = colors.HexColor("#183748")
     grid_color = colors.HexColor("#6F7F89")
 
@@ -185,83 +225,93 @@ def build_machine_table_pdf(tools: list[dict], machine: dict, type_colors: dict[
             value = value[:-1]
         return value + "..."
 
-    for page_index, material_chunk in enumerate(chunks):
-        continuation = f" - materiali {page_index * 5 + 1}-{page_index * 5 + len(material_chunk)}" if len(chunks) > 1 else ""
+    for page_index, (material_chunk, row_chunk) in enumerate(pages):
+        material_page = page_index // len(row_chunks)
+        row_page = page_index % len(row_chunks)
+        continuation = ""
+        if len(material_chunks) > 1:
+            start = material_page * material_limit + 1
+            continuation += f" - materiali {start}-{start + len(material_chunk) - 1}"
+        if len(row_chunks) > 1:
+            start = row_page * row_limit + 1
+            continuation += f" - utensili {start}-{start + len(row_chunk) - 1}"
         pdf.setFillColor(colors.HexColor("#183748"))
         pdf.setFont("Helvetica-Bold", 13)
-        pdf.drawString(left, title_y, f"Tabella utensili macchina{continuation}")
+        pdf.drawString(left, title_y, f"Tabella generale utensili{continuation}")
         pdf.setFillColor(colors.HexColor("#526875"))
         pdf.setFont("Helvetica", 6.5)
-        pdf.drawString(left, title_y - 4 * mm, f"{machine.get('machine_name') or 'CNC'} - 30 posti - generata {exported_at.replace('T', ' ')}")
+        pdf.drawString(left, title_y - 4 * mm, f"{machine.get('machine_name') or 'CNC'} - correttori D/H 1-250 - formato {paper_format} - generata {exported_at.replace('T', ' ')}")
 
         widths = base_widths + [18 * mm] * (len(material_chunk) * 2)
         x_positions = [left]
         for width in widths:
             x_positions.append(x_positions[-1] + width)
-        table_bottom = table_top - first_header_height - second_header_height - row_height * 30
+        visible_rows = max(1, len(row_chunk))
+        table_bottom = table_top - first_header_height - second_header_height - row_height * visible_rows
         pdf.setStrokeColor(grid_color)
         pdf.setLineWidth(0.35)
 
         pdf.setFillColor(header_color)
         pdf.rect(left, table_top - first_header_height - second_header_height, sum(widths), first_header_height + second_header_height, stroke=0, fill=1)
         pdf.setFillColor(colors.white)
-        fixed_headers = ("Icona", "T", "D", "H", "Descrizione utensile")
+        fixed_headers = ("Icona", "T", "D", "H", "Descrizione utensile", "Dove")
         for index, label in enumerate(fixed_headers):
             centered_text(label, x_positions[index], widths[index], table_top - 7.2 * mm, "Helvetica-Bold", 6.3)
         for index, material in enumerate(material_chunk):
-            column = 5 + index * 2
+            column = 6 + index * 2
             pair_width = widths[column] + widths[column + 1]
             centered_text(fit_text(material, pair_width - 2 * mm, "Helvetica-Bold", 6.3), x_positions[column], pair_width, table_top - 4.1 * mm, "Helvetica-Bold", 6.3)
             centered_text("F", x_positions[column], widths[column], table_top - 9.2 * mm, "Helvetica-Bold", 6.3)
             centered_text("S", x_positions[column + 1], widths[column + 1], table_top - 9.2 * mm, "Helvetica-Bold", 6.3)
 
-        for slot in range(1, 31):
-            tool = by_slot.get(slot, {"slot": slot, "cutting_parameters": []})
+        for row_index in range(visible_rows):
+            tool = row_chunk[row_index] if row_index < len(row_chunk) else {"cutting_parameters": []}
             occupied = _tool_is_occupied(tool)
             icon_name = tool.get("icon", "") if occupied else ""
             selected = type_colors.get(icon_name, DEFAULT_TOOL_TYPE_COLORS.get(icon_name, "#B0BEC5"))
-            row_top = table_top - first_header_height - second_header_height - (slot - 1) * row_height
+            row_top = table_top - first_header_height - second_header_height - row_index * row_height
             row_bottom = row_top - row_height
             pdf.setFillColor(colors.HexColor(selected) if occupied else colors.HexColor("#ECEFF1"))
             pdf.rect(x_positions[0], row_bottom, widths[0], row_height, stroke=0, fill=1)
             pdf.setFillColor(_lighten_hex(selected) if occupied else colors.white)
-            pdf.rect(x_positions[1], row_bottom, sum(widths[1:5]), row_height, stroke=0, fill=1)
+            pdf.rect(x_positions[1], row_bottom, sum(widths[1:6]), row_height, stroke=0, fill=1)
             icon_path = WWW_DIR / "tool-icons" / f"{TOOL_ICON_FILES.get(icon_name, icon_name)}.png"
             if icon_name and icon_path.is_file():
                 pdf.drawImage(str(icon_path), x_positions[0] + 2.9 * mm, row_bottom + .4 * mm, width=4.2 * mm, height=4.2 * mm, preserveAspectRatio=True, mask="auto")
             pdf.setFillColor(colors.HexColor("#17232D"))
             text_y = row_bottom + 1.65 * mm
-            centered_text(str(slot), x_positions[1], widths[1], text_y)
+            centered_text(_compact_number(tool.get("table_t")), x_positions[1], widths[1], text_y)
             centered_text(_compact_number(tool.get("d_offset")) if occupied else "", x_positions[2], widths[2], text_y)
             centered_text(_compact_number(tool.get("h_offset")) if occupied else "", x_positions[3], widths[3], text_y)
             description = str(tool.get("description") or tool.get("tool_type") or "")
             pdf.setFont("Helvetica-Bold", 6.2)
             pdf.drawString(x_positions[4] + 1.2 * mm, text_y, fit_text(description, widths[4] - 2.4 * mm, "Helvetica-Bold", 6.2))
+            centered_text(str(tool.get("table_location") or ""), x_positions[5], widths[5], text_y, "Helvetica", 5.6)
             cutting_by_name = {
                 str(item.get("material") or "").strip().casefold(): item
                 for item in tool.get("cutting_parameters", [])
             }
             for material_index, material in enumerate(material_chunk):
                 cutting = cutting_by_name.get(material.casefold(), {})
-                column = 5 + material_index * 2
+                column = 6 + material_index * 2
                 centered_text(_compact_number(cutting.get("feed_mm_min")), x_positions[column], widths[column], text_y)
                 centered_text(_compact_number(cutting.get("rpm")), x_positions[column + 1], widths[column + 1], text_y)
 
         pdf.setStrokeColor(grid_color)
         header_split = table_top - first_header_height
         for column_index, x in enumerate(x_positions):
-            is_material_middle = column_index >= 6 and column_index % 2 == 0
+            is_material_middle = column_index >= 7 and column_index % 2 == 1
             pdf.line(x, table_bottom, x, header_split if is_material_middle else table_top)
-        pdf.line(x_positions[5], header_split, x_positions[-1], header_split)
+        pdf.line(x_positions[6], header_split, x_positions[-1], header_split)
         pdf.line(left, table_top, x_positions[-1], table_top)
         pdf.line(left, table_top - first_header_height - second_header_height, x_positions[-1], table_top - first_header_height - second_header_height)
-        for slot in range(31):
-            y = table_top - first_header_height - second_header_height - slot * row_height
+        for row_index in range(visible_rows + 1):
+            y = table_top - first_header_height - second_header_height - row_index * row_height
             pdf.line(left, y, x_positions[-1], y)
         pdf.setFillColor(colors.HexColor("#526875"))
         pdf.setFont("Helvetica", 6.5)
         pdf.drawString(left, 5 * mm, "F = avanzamento mm/min - S = giri/min")
-        pdf.drawRightString(page_width - left, 5 * mm, f"Pagina {page_index + 1}/{len(chunks)}")
+        pdf.drawRightString(page_width - left, 5 * mm, f"Pagina {page_index + 1}/{len(pages)}")
         pdf.showPage()
 
     pdf.save()
@@ -1849,10 +1899,15 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/export/machine-table.pdf":
             exported_at = utc_now()
-            content = build_machine_table_pdf(
-                list_tools(), machine_options(), list_tool_type_colors(), exported_at
-            )
-            filename = f"tabella-utensili-macchina-{exported_at[:10]}.pdf"
+            paper_format = parse_qs(urlparse(self.path).query).get("format", ["A4"])[0].upper()
+            try:
+                content = build_machine_table_pdf(
+                    list_tools(), list_inventory(), machine_options(), list_tool_type_colors(), exported_at, paper_format
+                )
+            except ValueError as exc:
+                self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+                return
+            filename = f"tabella-generale-utensili-{paper_format.lower()}-{exported_at[:10]}.pdf"
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "application/pdf")
             self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
