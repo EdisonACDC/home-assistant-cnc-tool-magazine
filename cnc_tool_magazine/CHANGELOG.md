@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.2
+
+- Nuovo pulsante **Svuota tutto il magazzino** con conferma obbligatoria.
+- Tutti gli utensili montati vengono trasferiti in un'unica operazione atomica nel magazzino Officina.
+- Vengono conservati correttori D/H, materiali, documenti, icone, passo filettatura, stato e ore di utilizzo.
+- Le 30 posizioni macchina vengono ripristinate come libere senza eliminare utensili.
+- Ogni smontaggio viene registrato automaticamente nei movimenti.
+
 ## 1.4.1
 
 - Aggiunto **Maschio a rullare** come tipo utensile selezionabile con icona realistica dedicata.

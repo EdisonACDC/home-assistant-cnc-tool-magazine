@@ -850,6 +850,20 @@ document.querySelector("#inventory-button").addEventListener("click", async () =
 });
 document.querySelector("#close-inventory-dialog").addEventListener("click", () => inventoryDialog.close());
 
+document.querySelector("#empty-all-button").addEventListener("click", async () => {
+  const occupied = state.tools.filter(isOccupied).length;
+  if (!occupied) {
+    toast("Il magazzino macchina è già vuoto");
+    return;
+  }
+  if (!confirm(`Spostare tutti i ${occupied} utensili montati in Officina?\n\nLe 30 posizioni macchina verranno liberate. Nessun utensile sarà eliminato.`)) return;
+  try {
+    const result = await request("api/tools/empty-all", {method:"POST"});
+    await loadTools();
+    toast(`${result.moved} utensili spostati in Officina`);
+  } catch (error) { toast(error.message, true); }
+});
+
 function clearTemplateForm() {
   templateForm.reset();
   templateForm.elements.id.value = "";

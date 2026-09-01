@@ -1517,6 +1517,29 @@ def empty_position(slot: int) -> dict:
     return active_to_inventory(slot)
 
 
+def empty_all_positions() -> dict:
+    """Atomically move every mounted tool to the workshop inventory."""
+    inventory_ids: list[int] = []
+    moved_slots: list[int] = []
+    with connect() as db:
+        for slot in range(1, 31):
+            _settle_timer(db, slot)
+            tool, cuts = _active_snapshot(db, slot)
+            if not (_has_tool_data(tool) or cuts):
+                continue
+            if not tool.get("tool_uid"):
+                tool["tool_uid"] = uuid.uuid4().hex
+            inventory_ids.append(_store_inventory(db, tool, cuts))
+            _record_event(
+                db, tool["tool_uid"], "unmounted",
+                f"Utensile smontato dalla posizione {slot} durante lo svuotamento completo e spostato in Officina",
+                from_slot=slot,
+            )
+            _reset_tool(db, slot)
+            moved_slots.append(slot)
+    return {"ok": True, "moved": len(moved_slots), "slots": moved_slots, "inventory_ids": inventory_ids}
+
+
 def mount_inventory_tool(inventory_id: int, target_slot: int) -> dict:
     with connect() as db:
         row = db.execute("SELECT * FROM inventory_tools WHERE id = ?", (inventory_id,)).fetchone()
@@ -2025,6 +2048,9 @@ class Handler(BaseHTTPRequestHandler):
             to_inventory_match = re.fullmatch(r"/api/tools/(\d+)/inventory", path)
             mount_inventory_match = re.fullmatch(r"/api/inventory/(\d+)/mount", path)
             move_match = re.fullmatch(r"/api/tools/(\d+)/move", path)
+            if path == "/api/tools/empty-all":
+                self.send_json(empty_all_positions())
+                return
             if archive_match:
                 history_id = archive_active_tool(self.valid_slot(archive_match.group(1)))
                 self.send_json({"ok": True, "history_id": history_id})

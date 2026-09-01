@@ -238,6 +238,29 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(218, stored["h_offset"])
         self.assertEqual("C45", stored["cutting_parameters"][0]["material"])
 
+    def test_empty_all_positions_moves_every_mounted_tool_to_inventory(self):
+        app.update_tool(3, {
+            "description": "Fresa da conservare", "icon": "end_mill", "diameter_mm": 10,
+            "d_offset": 77, "h_offset": 88, "usage_hours": 4.5,
+        })
+        app.upsert_cutting(3, {"material": "C45", "feed_mm_min": 420, "rpm": 2100})
+        app.update_tool(7, {
+            "description": "Maschio a rullare M8", "icon": "roll_tap", "diameter_mm": 8,
+            "thread_pitch_mm": 1.25, "d_offset": 107, "h_offset": 207,
+        })
+        result = app.empty_all_positions()
+        self.assertEqual(2, result["moved"])
+        self.assertEqual([3, 7], result["slots"])
+        self.assertFalse(any(app._tool_is_occupied(tool) for tool in app.list_tools()))
+        inventory = sorted(app.list_inventory(), key=lambda item: item["d_offset"])
+        self.assertEqual([77, 107], [item["d_offset"] for item in inventory])
+        self.assertEqual(88, inventory[0]["h_offset"])
+        self.assertEqual(4.5, inventory[0]["usage_hours"])
+        self.assertEqual("C45", inventory[0]["cutting_parameters"][0]["material"])
+        self.assertEqual(1.25, inventory[1]["thread_pitch_mm"])
+        self.assertEqual(2, len([event for event in app.list_events() if event["event_type"] == "unmounted"]))
+        self.assertEqual(0, app.empty_all_positions()["moved"])
+
     def test_moves_active_tool_between_free_slots_and_records_event(self):
         app.update_tool(3, {"description": "Punta mobile", "d_offset": 103, "h_offset": 203})
         uid = app.list_tools()[2]["tool_uid"]

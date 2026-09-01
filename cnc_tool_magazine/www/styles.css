@@ -29,6 +29,7 @@ h1 { margin-bottom: .4rem; font-size: clamp(1.6rem,4vw,2.45rem); letter-spacing:
 .button { border: 1px solid var(--accent); background: var(--accent); color: #031916; font-weight: 800; border-radius: 10px; padding: .72rem 1rem; }
 .button:hover { filter: brightness(1.08); }
 .button.secondary { background: transparent; color: var(--text); border-color: var(--line); }
+.button.bulk-danger { background: transparent; color: #ffb0b0; border-color: #a94a4a; }
 .button.danger { background: transparent; color: #ff9b9b; border-color: #7f3838; margin-right: auto; }
 main { padding: 1.4rem clamp(1rem,4vw,4rem) 4rem; }
 .global-search { margin-bottom: 1rem; padding: 1.15rem; border: 1px solid rgba(54,209,196,.4); border-radius: 16px; background: linear-gradient(145deg,rgba(24,169,153,.12),var(--panel)); box-shadow: var(--shadow); }
