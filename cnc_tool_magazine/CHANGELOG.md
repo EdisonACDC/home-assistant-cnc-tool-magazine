@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.0
+
+- Nuova grafica ispirata a un pannello CNC virtuale, ottimizzata per telefono e tablet.
+- Magazzino circolare interattivo con stato delle posizioni, segnalazioni e utensile selezionato.
+- Scheda rapida con icona, correttori T/D/H, dimensioni e parametri F/S per materiale.
+- Nuova impostazione **Numero posizioni** configurabile da 1 a 60.
+- Le posizioni aggiunte vengono create automaticamente con i relativi numeri T/D/H iniziali.
+- Riducendo il magazzino, utensili montati e storico delle posizioni eliminate vengono trasferiti in Officina senza perdere dati o allegati.
+- Backup JSON, importazione, PDF, QR, montaggio, spostamento e svuotamento ora rispettano il numero configurato.
+
 ## 1.4.3
 
 - Nuovo pulsante **GESTISCI FILE** che apre una finestra dedicata.

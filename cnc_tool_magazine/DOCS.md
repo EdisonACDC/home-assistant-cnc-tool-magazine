@@ -20,6 +20,12 @@ Quando scegli una **Icona utensile**, il campo **Tipo utensile** viene compilato
 
 La versione attuale cerca il nome degli allegati, non il testo contenuto all'interno dei PDF o delle fotografie.
 
+## Magazzino CNC virtuale e numero posizioni
+
+La schermata principale mostra il magazzino circolare della macchina. Tocca una posizione per vedere immediatamente icona, descrizione, correttori T/D/H, dimensioni e valori F/S dei materiali; dalla scheda rapida puoi aprire l'utensile oppure montarne uno dall'Officina se la posizione è libera.
+
+Apri **Impostazioni → Numero posizioni** per configurare il magazzino da 1 a 60 posti. Aumentando il numero vengono create nuove posizioni libere. Riducendolo, gli utensili montati e quelli presenti nello storico delle posizioni eliminate vengono trasferiti automaticamente in Officina, conservando correttori, materiali, documenti, icone e dati di utilizzo.
+
 Usa **Archivia e inserisci nuovo** quando sostituisci l'utensile montato. L'utensile precedente e tutti i suoi parametri di taglio restano nello storico della stessa posizione. Il comando **Monta** riporta uno storico in posizione attiva e archivia automaticamente quello attualmente montato.
 
 ## Stato e vita utensile
@@ -28,13 +34,13 @@ Scegli lo stato tra **Nuovo**, **In uso**, **Da affilare**, **In manutenzione** 
 
 ## QR ed etichette
 
-Il pulsante **QR** nella scheda crea l'etichetta dell'utensile montato. **Etichette QR** nella schermata principale prepara gli utensili montati, archiviati e presenti in Officina e permette di mostrare anche tutti i 30 posti. Premi **Stampa etichette** per stampare o salvare il foglio in PDF.
+Il pulsante **QR** nella scheda crea l'etichetta dell'utensile montato. **Etichette QR** nella schermata principale prepara gli utensili montati, archiviati e presenti in Officina e permette di mostrare anche tutte le posizioni configurate. Premi **Stampa etichette** per stampare o salvare il foglio in PDF.
 
 Scansionando il QR si apre direttamente la scheda della posizione. Il telefono deve poter raggiungere lo stesso indirizzo di Home Assistant ed essere già autenticato.
 
 ## Magazzino Officina e movimenti
 
-Apri **Officina** per registrare gli utensili disponibili ma non montati. Il comando **Svuota posizione → Officina** libera il posto fisico e trasferisce automaticamente l'utensile in Officina senza eliminare dati, parametri o documenti. Con **Monta** scegli una posizione 1–30 senza ricreare i dati; se è occupata, l'utensile presente viene conservato automaticamente in Officina.
+Apri **Officina** per registrare gli utensili disponibili ma non montati. Il comando **Svuota posizione → Officina** libera il posto fisico e trasferisce automaticamente l'utensile in Officina senza eliminare dati, parametri o documenti. Con **Monta** scegli una delle posizioni configurate senza ricreare i dati; se è occupata, l'utensile presente viene conservato automaticamente in Officina.
 
 Il comando **Sposta** trasferisce un utensile montato in un'altra posizione libera. La pagina **Movimenti** registra automaticamente creazione, montaggio, smontaggio, spostamento e archiviazione.
 
@@ -59,14 +65,14 @@ Il backup completo dell'add-on di Home Assistant include database e file allegat
 
 ## Svuotamento completo del magazzino
 
-Il pulsante **Svuota tutto il magazzino** trasferisce in Officina tutti gli utensili attualmente montati e libera le 30 posizioni macchina. Prima dell'operazione viene richiesta una conferma. Utensili, correttori D/H, parametri dei materiali, allegati, ore, icone e passo filettatura restano conservati; ogni smontaggio viene registrato nei movimenti.
+Il pulsante **Svuota tutto il magazzino** trasferisce in Officina tutti gli utensili attualmente montati e libera tutte le posizioni macchina configurate. Prima dell'operazione viene richiesta una conferma. Utensili, correttori D/H, parametri dei materiali, allegati, ore, icone e passo filettatura restano conservati; ogni smontaggio viene registrato nei movimenti.
 
 Per montare rapidamente un utensile, usa **Monta utensile** direttamente su una posizione macchina libera. Si apre l'elenco degli utensili disponibili in Officina: premi **Monta qui** sull'utensile desiderato per inserirlo nella posizione selezionata.
 
 ## Esportazione e ripristino
 
 - Il pulsante **GESTISCI FILE** apre una finestra che raccoglie Importa JSON, Esporta JSON, Esporta PDF completo, Etichette QR e Tabella utensili PDF.
-- **Esporta PDF** genera un documento A4 completo con tutte le 30 posizioni, gli utensili montati, l'intero archivio e i parametri di taglio per materiale.
+- **Esporta PDF** genera un documento A4 completo con tutte le posizioni configurate, gli utensili montati, l'intero archivio e i parametri di taglio per materiale.
 - **Tabella generale utensili PDF** apre la configurazione dei colori e permette di scegliere il formato orizzontale A4 o A3. Raccoglie tutti gli utensili montati, presenti in Officina e archiviati, ordinandoli per correttore D e poi H nell'intervallo 1-250. La colonna T indica la posizione soltanto per gli utensili attualmente montati. Per ogni materiale sono riportati soltanto F (mm/min) e S (giri/min); materiali e utensili vengono distribuiti automaticamente su più pagine.
 - **Esporta JSON** genera una copia strutturata dei dati per il backup.
 - **Importa JSON** ripristina un backup dopo averlo controllato. Prima del ripristino viene sempre salvata automaticamente una copia dello stato corrente in `/data/backups`.

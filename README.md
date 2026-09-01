@@ -4,17 +4,18 @@
 
 # Home Assistant CNC Tool Magazine
 
-[![Version](https://img.shields.io/badge/version-1.4.3-087f74)](https://github.com/EdisonACDC/home-assistant-cnc-tool-magazine/releases)
+[![Version](https://img.shields.io/badge/version-1.5.0-087f74)](https://github.com/EdisonACDC/home-assistant-cnc-tool-magazine/releases)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-add--on-41BDF5)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**CNC Tool Magazine** è un add-on gratuito per Home Assistant che gestisce il magazzino utensili di una fresatrice CNC. È stato progettato per un magazzino PentaMac / Visel da 30 posizioni, ma può essere utilizzato come archivio digitale per altre fresatrici con la stessa capacità.
+**CNC Tool Magazine** è un add-on gratuito per Home Assistant che gestisce il magazzino utensili di una fresatrice CNC. È stato progettato per PentaMac / Visel, con un numero configurabile da 1 a 60 posizioni.
 
-**CNC Tool Magazine** is a free Home Assistant add-on for managing a 30-position CNC milling machine tool magazine. It stores tool offsets, dimensions, cutting data by material and the complete history of replaced tools.
+**CNC Tool Magazine** is a free Home Assistant add-on for managing a configurable 1-to-60-position CNC milling machine tool magazine. It stores tool offsets, dimensions, cutting data by material and the complete history of replaced tools.
 
 ## Funzioni principali
 
-- 30 posizioni fisse corrispondenti ai posti fisici del magazzino CNC.
+- Da 1 a 60 posizioni configurabili, corrispondenti ai posti fisici del magazzino CNC.
+- Interfaccia CNC virtuale con selettore circolare, scheda rapida dell'utensile e adattamento automatico a telefono e tablet.
 - Correttori utensile modificabili `T`, `D` e `H`.
 - Descrizione, tipo, diametro, lunghezza, numero di taglienti e note.
 - 18 tipi selezionabili con icone realistiche per frese, punte, maschi, maschi a rullare, pettini per filetti, alesatori, bareni e tastatori.
@@ -63,7 +64,7 @@ Quando sostituisci un utensile, premi **Archivia e inserisci nuovo**. L'utensile
 
 ## Esportazione PDF e backup JSON
 
-- **Esporta PDF** crea un rapporto con tutte le 30 posizioni, gli utensili montati, quelli archiviati e le schede di taglio per materiale.
+- **Esporta PDF** crea un rapporto con tutte le posizioni configurate, gli utensili montati, quelli archiviati e le schede di taglio per materiale.
 - **Esporta JSON** crea una copia strutturata dei dati utile come backup.
 - **Importa JSON** ripristina un backup e salva prima una copia automatica dello stato corrente.
 
@@ -84,7 +85,7 @@ Home Assistant CNC tool magazine, CNC tool management, milling machine tool data
 
 ## Versione
 
-Versione corrente: **1.4.3**. Consulta il [changelog](cnc_tool_magazine/CHANGELOG.md) per tutte le modifiche.
+Versione corrente: **1.5.0**. Consulta il [changelog](cnc_tool_magazine/CHANGELOG.md) per tutte le modifiche.
 
 ## Licenza
 
