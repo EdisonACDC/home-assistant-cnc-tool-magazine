@@ -40,6 +40,15 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(42, len(app.list_tools()))
         self.assertEqual("Utensile posizione 42", app.list_tools()[-1]["description"])
 
+    def test_magazine_supports_all_250_physical_positions(self):
+        result = app.resize_magazine(250)
+        self.assertEqual(250, result["magazine_slots"])
+        self.assertEqual(list(range(1, 251)), [tool["slot"] for tool in app.list_tools()])
+        tool = app.update_tool(250, {"description": "Utensile T250", "d_offset": 249, "h_offset": 250})
+        self.assertEqual("Utensile T250", tool["description"])
+        self.assertEqual(249, tool["d_offset"])
+        self.assertEqual(250, tool["h_offset"])
+
     def test_reducing_positions_moves_active_and_history_to_inventory(self):
         app.resize_magazine(35)
         app.update_tool(35, {"description": "Fresa fuori intervallo", "d_offset": 205, "h_offset": 206})
@@ -55,9 +64,54 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(206, fresa["h_offset"])
 
     def test_rejects_position_count_outside_supported_range(self):
-        for value in (0, 61, "non valido"):
+        for value in (0, 251, "non valido"):
             with self.assertRaises(ValueError):
                 app.resize_magazine(value)
+
+    def test_migrates_former_60_position_database_without_data_loss(self):
+        with app.connect() as db:
+            db.execute("PRAGMA foreign_keys = OFF")
+            db.executescript("""
+                DROP TABLE cutting_parameters;
+                DROP TABLE tool_history;
+                DROP TABLE tools;
+                DROP TABLE machine_settings;
+                CREATE TABLE tools (
+                    slot INTEGER PRIMARY KEY CHECK(slot BETWEEN 1 AND 60), t_number INTEGER,
+                    d_offset INTEGER, h_offset INTEGER, diameter_mm REAL, length_mm REAL,
+                    description TEXT NOT NULL DEFAULT '', tool_type TEXT NOT NULL DEFAULT '',
+                    icon TEXT NOT NULL DEFAULT '', thread_pitch_mm REAL, flutes INTEGER,
+                    notes TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'in_use',
+                    usage_hours REAL NOT NULL DEFAULT 0, life_hours REAL, timer_started_at TEXT,
+                    updated_at TEXT, tool_uid TEXT
+                );
+                CREATE TABLE cutting_parameters (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    slot INTEGER NOT NULL REFERENCES tools(slot) ON DELETE CASCADE,
+                    material TEXT NOT NULL COLLATE NOCASE, vc_m_min REAL, rpm INTEGER,
+                    fz_mm_tooth REAL, feed_mm_min REAL, ap_mm REAL, ae_mm REAL,
+                    coolant TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '',
+                    updated_at TEXT NOT NULL, UNIQUE(slot, material)
+                );
+                CREATE TABLE tool_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    slot INTEGER NOT NULL CHECK(slot BETWEEN 1 AND 60),
+                    tool_json TEXT NOT NULL, cutting_json TEXT NOT NULL, archived_at TEXT NOT NULL
+                );
+                CREATE TABLE machine_settings (
+                    id INTEGER PRIMARY KEY CHECK(id = 1),
+                    magazine_slots INTEGER NOT NULL CHECK(magazine_slots BETWEEN 1 AND 60),
+                    updated_at TEXT NOT NULL
+                );
+                INSERT INTO tools(slot, t_number, d_offset, h_offset, description, tool_uid)
+                    VALUES (60, 60, 160, 160, 'Utensile conservato', 'legacy-60');
+                INSERT INTO machine_settings VALUES (1, 60, '2026-09-01T00:00:00+00:00');
+            """)
+        app.init_db()
+        self.assertEqual(60, app.machine_options()["magazine_slots"])
+        self.assertEqual("Utensile conservato", app.list_tools()[59]["description"])
+        app.resize_magazine(250)
+        self.assertEqual(250, len(app.list_tools()))
 
     def test_updates_tool_and_cutting_parameters(self):
         tool = app.update_tool(7, {"description": "Fresa MD Ø10", "diameter_mm": "10.0", "flutes": "4"})

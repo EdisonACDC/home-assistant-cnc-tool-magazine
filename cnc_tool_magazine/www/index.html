@@ -34,6 +34,11 @@
           <div><p class="eyebrow">Magazzino macchina</p><h2 id="magazine-title">30 posizioni reali</h2></div>
           <span class="mounted-badge"><strong id="carousel-occupied-count">0</strong> montati</span>
         </div>
+        <nav class="magazine-groups" aria-label="Gruppi delle posizioni">
+          <button id="magazine-group-previous" class="group-arrow" type="button" aria-label="Gruppo precedente">‹</button>
+          <label><span>Gruppo posizioni</span><select id="magazine-group-select" aria-label="Seleziona gruppo posizioni"></select></label>
+          <button id="magazine-group-next" class="group-arrow" type="button" aria-label="Gruppo successivo">›</button>
+        </nav>
         <div class="magazine-carousel-wrap">
           <div id="magazine-carousel" class="magazine-carousel" aria-label="Selettore delle posizioni macchina">
             <button id="magazine-center" class="magazine-center" type="button" aria-label="Apri posizione selezionata"><span aria-hidden="true">↻</span><strong>ATC</strong><small id="magazine-center-count">30 posti</small></button>
@@ -206,7 +211,8 @@
         <button type="button" class="icon-button" id="close-machine-settings-dialog" aria-label="Chiudi">×</button>
       </div>
       <form id="machine-settings-form" class="compact-form">
-        <label><span>Posizioni del magazzino macchina</span><input name="magazine_slots" type="number" min="1" max="60" step="1" required></label>
+        <label><span>Posizioni del magazzino macchina</span><input name="magazine_slots" type="number" min="1" max="250" step="1" required></label>
+        <p class="subtitle">Da 1 a 250 posizioni. Il magazzino circolare le mostra in gruppi da 30.</p>
         <div class="safe-notice"><strong>Riduzione sicura</strong><p>Se riduci il numero, gli utensili e lo storico delle posizioni eliminate vengono trasferiti automaticamente in Officina.</p></div>
         <div class="form-actions"><button class="button" type="submit">Salva numero posizioni</button></div>
       </form>

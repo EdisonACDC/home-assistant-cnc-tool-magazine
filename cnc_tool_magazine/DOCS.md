@@ -24,7 +24,9 @@ La versione attuale cerca il nome degli allegati, non il testo contenuto all'int
 
 La schermata principale mostra il magazzino circolare della macchina. Tocca una posizione per vedere immediatamente icona, descrizione, correttori T/D/H, dimensioni e valori F/S dei materiali; dalla scheda rapida puoi aprire l'utensile oppure montarne uno dall'Officina se la posizione è libera.
 
-Apri **Impostazioni → Numero posizioni** per configurare il magazzino da 1 a 60 posti. Aumentando il numero vengono create nuove posizioni libere. Riducendolo, gli utensili montati e quelli presenti nello storico delle posizioni eliminate vengono trasferiti automaticamente in Officina, conservando correttori, materiali, documenti, icone e dati di utilizzo.
+Apri **Impostazioni → Numero posizioni** per configurare il magazzino da 1 a 250 posti. Aumentando il numero vengono create nuove posizioni libere. Riducendolo, gli utensili montati e quelli presenti nello storico delle posizioni eliminate vengono trasferiti automaticamente in Officina, conservando correttori, materiali, documenti, icone e dati di utilizzo.
+
+Il magazzino circolare mostra 30 posizioni alla volta. Usa le frecce o il selettore **Gruppo posizioni** per passare, ad esempio, da 1–30 a 31–60, fino a 241–250. La ricerca globale continua a lavorare contemporaneamente su tutte le posizioni.
 
 Usa **Archivia e inserisci nuovo** quando sostituisci l'utensile montato. L'utensile precedente e tutti i suoi parametri di taglio restano nello storico della stessa posizione. Il comando **Monta** riporta uno storico in posizione attiva e archivia automaticamente quello attualmente montato.
 

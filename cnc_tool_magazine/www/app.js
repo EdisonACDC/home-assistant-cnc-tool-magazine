@@ -1,6 +1,7 @@
 "use strict";
 
-const state = { tools: [], inventory: [], templates: [], events: [], validation: {count:0,warnings:[],slots:[]}, machine: {machine_name:"PentaMac / Visel", magazine_slots:30}, visel: null, activeSlot: null, dashboardSlot: 1, iconTarget: null, mountTargetSlot: null };
+const MAGAZINE_GROUP_SIZE = 30;
+const state = { tools: [], inventory: [], templates: [], events: [], validation: {count:0,warnings:[],slots:[]}, machine: {machine_name:"PentaMac / Visel", magazine_slots:30}, visel: null, activeSlot: null, dashboardSlot: 1, magazineGroup: 0, iconTarget: null, mountTargetSlot: null };
 const grid = document.querySelector("#tool-grid");
 const dialog = document.querySelector("#tool-dialog");
 const toolForm = document.querySelector("#tool-form");
@@ -140,18 +141,30 @@ function render() {
 
 function renderMagazine(occupiedCount) {
   const center = document.querySelector("#magazine-center");
+  const groupSelect = document.querySelector("#magazine-group-select");
+  const previousButton = document.querySelector("#magazine-group-previous");
+  const nextButton = document.querySelector("#magazine-group-next");
   magazineCarousel.querySelectorAll(".carousel-slot").forEach(item => item.remove());
   const total = state.tools.length;
-  const outerCount = total > 30 ? 30 : total;
-  state.tools.forEach(tool => {
+  const groupCount = Math.max(1, Math.ceil(total / MAGAZINE_GROUP_SIZE));
+  state.magazineGroup = Math.min(Math.max(0, state.magazineGroup), groupCount - 1);
+  const groupStart = state.magazineGroup * MAGAZINE_GROUP_SIZE + 1;
+  const groupEnd = Math.min(total, groupStart + MAGAZINE_GROUP_SIZE - 1);
+  const visibleTools = state.tools.filter(tool => tool.slot >= groupStart && tool.slot <= groupEnd);
+  groupSelect.innerHTML = Array.from({length:groupCount}, (_, index) => {
+    const start = index * MAGAZINE_GROUP_SIZE + 1;
+    const end = Math.min(total, start + MAGAZINE_GROUP_SIZE - 1);
+    return `<option value="${index}">${start}–${end}</option>`;
+  }).join("");
+  groupSelect.value = String(state.magazineGroup);
+  previousButton.disabled = state.magazineGroup === 0;
+  nextButton.disabled = state.magazineGroup === groupCount - 1;
+  visibleTools.forEach((tool, index) => {
     const button = document.createElement("button");
-    const inInnerRing = total > 30 && tool.slot > 30;
-    const ringIndex = inInnerRing ? tool.slot - 31 : tool.slot - 1;
-    const ringCount = inInnerRing ? total - 30 : outerCount;
     const issues = state.validation.warnings.some(item => item.slots.includes(tool.slot));
     button.type = "button";
-    button.className = `carousel-slot ${isOccupied(tool) ? "occupied" : "free"} ${issues ? "warning" : ""} ${tool.slot === state.dashboardSlot ? "selected" : ""} ${total > 36 ? "compact" : ""} ${inInnerRing ? "inner" : ""}`;
-    button.style.setProperty("--slot-angle", `${(ringIndex * 360) / Math.max(ringCount, 1)}deg`);
+    button.className = `carousel-slot ${isOccupied(tool) ? "occupied" : "free"} ${issues ? "warning" : ""} ${tool.slot === state.dashboardSlot ? "selected" : ""} ${visibleTools.length > 24 ? "compact" : ""}`;
+    button.style.setProperty("--slot-angle", `${(index * 360) / Math.max(visibleTools.length, 1)}deg`);
     button.textContent = tool.slot;
     button.setAttribute("aria-label", `Posizione ${tool.slot}: ${isOccupied(tool) ? tool.description || tool.tool_type || "utensile montato" : "libera"}`);
     button.addEventListener("click", () => {
@@ -162,8 +175,24 @@ function renderMagazine(occupiedCount) {
   });
   document.querySelector("#carousel-occupied-count").textContent = occupiedCount;
   document.querySelector("#magazine-title").textContent = `${total} ${total === 1 ? "posizione reale" : "posizioni reali"}`;
-  document.querySelector("#magazine-center-count").textContent = `${total} ${total === 1 ? "posto" : "posti"}`;
+  document.querySelector("#magazine-center-count").textContent = groupStart === groupEnd ? `Posto ${groupStart}` : `${groupStart}–${groupEnd}`;
   renderDashboardTool();
+}
+
+function selectMagazineGroup(index) {
+  const groupCount = Math.max(1, Math.ceil(state.tools.length / MAGAZINE_GROUP_SIZE));
+  state.magazineGroup = Math.min(Math.max(0, Number(index) || 0), groupCount - 1);
+  const firstSlot = state.magazineGroup * MAGAZINE_GROUP_SIZE + 1;
+  const lastSlot = Math.min(state.tools.length, firstSlot + MAGAZINE_GROUP_SIZE - 1);
+  if (state.dashboardSlot < firstSlot || state.dashboardSlot > lastSlot) state.dashboardSlot = firstSlot;
+  renderMagazine(state.tools.filter(isOccupied).length);
+}
+
+function revealMagazineSlot(slot) {
+  if (!Number.isInteger(slot) || slot < 1 || slot > state.tools.length) return;
+  state.dashboardSlot = slot;
+  state.magazineGroup = Math.floor((slot - 1) / MAGAZINE_GROUP_SIZE);
+  renderMagazine(state.tools.filter(isOccupied).length);
 }
 
 function renderDashboardTool() {
@@ -343,6 +372,7 @@ async function loadTools(showMessage = false) {
 }
 
 function openTool(slot, historyId = null) {
+  revealMagazineSlot(slot);
   state.activeSlot = slot;
   const tool = state.tools.find(item => item.slot === slot);
   document.querySelector("#slot").value = slot;
@@ -766,7 +796,7 @@ importFile.addEventListener("change", async () => {
   try {
     if (file.size > 5_000_000) throw new Error("Il file supera il limite di 5 MB");
     const data = JSON.parse(await file.text());
-    if (data.schema_version !== 1 || !Array.isArray(data.tools) || data.tools.length < 1 || data.tools.length > 60) {
+    if (data.schema_version !== 1 || !Array.isArray(data.tools) || data.tools.length < 1 || data.tools.length > 250) {
       throw new Error("Questo non è un backup valido di CNC Tool Magazine");
     }
     const occupied = data.tools.filter(tool => isOccupied({...tool, cutting_parameters:tool.cutting_parameters || []})).length;
@@ -1147,6 +1177,9 @@ document.querySelector("#refresh-button").addEventListener("click", () => loadTo
 document.querySelector("#dashboard-open-tool").addEventListener("click", () => openTool(state.dashboardSlot));
 document.querySelector("#dashboard-mount-tool").addEventListener("click", () => openMountFromWorkshop(state.dashboardSlot));
 document.querySelector("#magazine-center").addEventListener("click", () => openTool(state.dashboardSlot));
+document.querySelector("#magazine-group-select").addEventListener("change", event => selectMagazineGroup(event.target.value));
+document.querySelector("#magazine-group-previous").addEventListener("click", () => selectMagazineGroup(state.magazineGroup - 1));
+document.querySelector("#magazine-group-next").addEventListener("click", () => selectMagazineGroup(state.magazineGroup + 1));
 document.querySelector("#machine-settings-button").addEventListener("click", () => {
   machineSettingsForm.elements.magazine_slots.value = state.tools.length;
   machineSettingsDialog.showModal();
@@ -1156,7 +1189,7 @@ machineSettingsDialog.addEventListener("click", event => { if (event.target === 
 machineSettingsForm.addEventListener("submit", async event => {
   event.preventDefault();
   const requested = Number(machineSettingsForm.elements.magazine_slots.value);
-  if (!Number.isInteger(requested) || requested < 1 || requested > 60) return toast("Inserisci un numero di posizioni da 1 a 60", true);
+  if (!Number.isInteger(requested) || requested < 1 || requested > 250) return toast("Inserisci un numero di posizioni da 1 a 250", true);
   if (requested < state.tools.length && !confirm(`Ridurre il magazzino da ${state.tools.length} a ${requested} posizioni?\n\nGli utensili e lo storico delle posizioni eliminate verranno trasferiti in Officina.`)) return;
   try {
     const result = await request("api/machine", {method:"PUT", body:JSON.stringify({magazine_slots:requested})});

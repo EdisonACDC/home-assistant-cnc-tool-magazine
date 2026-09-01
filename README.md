@@ -4,17 +4,18 @@
 
 # Home Assistant CNC Tool Magazine
 
-[![Version](https://img.shields.io/badge/version-1.5.0-087f74)](https://github.com/EdisonACDC/home-assistant-cnc-tool-magazine/releases)
+[![Version](https://img.shields.io/badge/version-1.6.0-087f74)](https://github.com/EdisonACDC/home-assistant-cnc-tool-magazine/releases)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-add--on-41BDF5)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**CNC Tool Magazine** è un add-on gratuito per Home Assistant che gestisce il magazzino utensili di una fresatrice CNC. È stato progettato per PentaMac / Visel, con un numero configurabile da 1 a 60 posizioni.
+**CNC Tool Magazine** è un add-on gratuito per Home Assistant che gestisce il magazzino utensili di una fresatrice CNC. È stato progettato per PentaMac / Visel, con un numero configurabile da 1 a 250 posizioni.
 
 **CNC Tool Magazine** is a free Home Assistant add-on for managing a configurable 1-to-60-position CNC milling machine tool magazine. It stores tool offsets, dimensions, cutting data by material and the complete history of replaced tools.
 
 ## Funzioni principali
 
-- Da 1 a 60 posizioni configurabili, corrispondenti ai posti fisici del magazzino CNC.
+- Da 1 a 250 posizioni configurabili, corrispondenti ai posti fisici del magazzino CNC.
+- Magazzino circolare diviso in gruppi da 30, con frecce e selettore rapido.
 - Interfaccia CNC virtuale con selettore circolare, scheda rapida dell'utensile e adattamento automatico a telefono e tablet.
 - Correttori utensile modificabili `T`, `D` e `H`.
 - Descrizione, tipo, diametro, lunghezza, numero di taglienti e note.
@@ -85,7 +86,7 @@ Home Assistant CNC tool magazine, CNC tool management, milling machine tool data
 
 ## Versione
 
-Versione corrente: **1.5.0**. Consulta il [changelog](cnc_tool_magazine/CHANGELOG.md) per tutte le modifiche.
+Versione corrente: **1.6.0**. Consulta il [changelog](cnc_tool_magazine/CHANGELOG.md) per tutte le modifiche.
 
 ## Licenza
 

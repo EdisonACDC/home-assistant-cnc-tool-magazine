@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.0
+
+- Esteso il magazzino macchina fino a 250 posizioni reali.
+- Aggiunta navigazione del cerchio in gruppi da 30 con selettore e frecce avanti/indietro.
+- Mantenuta la numerazione fisica reale T1–T250 in tutte le schede e operazioni.
+- Ricerca e collegamenti QR aprono automaticamente il gruppo contenente la posizione trovata.
+- Aggiornati importazione/esportazione, PDF, controlli, montaggio, spostamento e svuotamento per 250 posizioni.
+- Migrazione automatica dei database precedenti con limite di 30 o 60 posizioni.
+
 ## 1.5.0
 
 - Nuova grafica ispirata a un pannello CNC virtuale, ottimizzata per telefono e tablet.

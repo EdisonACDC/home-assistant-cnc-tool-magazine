@@ -34,7 +34,7 @@ APP_DIR = Path(__file__).resolve().parent
 WWW_DIR = APP_DIR / "www"
 DEFAULT_MAGAZINE_SLOTS = 30
 MIN_MAGAZINE_SLOTS = 1
-MAX_MAGAZINE_SLOTS = 60
+MAX_MAGAZINE_SLOTS = 250
 TOOL_FIELDS = {
     "icon",
     "t_number",
@@ -547,14 +547,14 @@ def connect() -> sqlite3.Connection:
 
 
 def _migrate_position_constraints(db: sqlite3.Connection) -> None:
-    """Upgrade databases created when machine positions were fixed to 1-30."""
+    """Upgrade databases created with the former 30/60-position limits."""
     schemas = {
         row["name"]: row["sql"] or ""
         for row in db.execute(
-            "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name IN ('tools', 'tool_history')"
+            "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name IN ('tools', 'tool_history', 'machine_settings')"
         )
     }
-    if not any("BETWEEN 1 AND 30" in sql.upper() for sql in schemas.values()):
+    if not any(re.search(r"BETWEEN\s+1\s+AND\s+(30|60)\b", sql, re.IGNORECASE) for sql in schemas.values()):
         return
     db.commit()
     db.execute("PRAGMA foreign_keys = OFF")
@@ -565,6 +565,7 @@ def _migrate_position_constraints(db: sqlite3.Connection) -> None:
             ALTER TABLE tools RENAME TO tools_legacy_slots;
             ALTER TABLE cutting_parameters RENAME TO cutting_parameters_legacy_slots;
             ALTER TABLE tool_history RENAME TO tool_history_legacy_slots;
+            ALTER TABLE machine_settings RENAME TO machine_settings_legacy_slots;
 
             CREATE TABLE tools (
                 slot INTEGER PRIMARY KEY CHECK(slot BETWEEN {MIN_MAGAZINE_SLOTS} AND {MAX_MAGAZINE_SLOTS}),
@@ -622,9 +623,17 @@ def _migrate_position_constraints(db: sqlite3.Connection) -> None:
             );
             INSERT INTO tool_history SELECT * FROM tool_history_legacy_slots;
 
+            CREATE TABLE machine_settings (
+                id INTEGER PRIMARY KEY CHECK(id = 1),
+                magazine_slots INTEGER NOT NULL CHECK(magazine_slots BETWEEN {MIN_MAGAZINE_SLOTS} AND {MAX_MAGAZINE_SLOTS}),
+                updated_at TEXT NOT NULL
+            );
+            INSERT INTO machine_settings SELECT * FROM machine_settings_legacy_slots;
+
             DROP TABLE cutting_parameters_legacy_slots;
             DROP TABLE tool_history_legacy_slots;
             DROP TABLE tools_legacy_slots;
+            DROP TABLE machine_settings_legacy_slots;
             COMMIT;
             """
         )
@@ -640,7 +649,7 @@ def init_db(slot_count: int = DEFAULT_MAGAZINE_SLOTS) -> None:
         db.executescript(
             """
             CREATE TABLE IF NOT EXISTS tools (
-                slot INTEGER PRIMARY KEY CHECK(slot BETWEEN 1 AND 60),
+                slot INTEGER PRIMARY KEY CHECK(slot BETWEEN 1 AND 250),
                 t_number INTEGER,
                 d_offset INTEGER,
                 h_offset INTEGER,
@@ -677,7 +686,7 @@ def init_db(slot_count: int = DEFAULT_MAGAZINE_SLOTS) -> None:
 
             CREATE TABLE IF NOT EXISTS tool_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                slot INTEGER NOT NULL CHECK(slot BETWEEN 1 AND 60),
+                slot INTEGER NOT NULL CHECK(slot BETWEEN 1 AND 250),
                 tool_json TEXT NOT NULL,
                 cutting_json TEXT NOT NULL,
                 archived_at TEXT NOT NULL
@@ -742,7 +751,7 @@ def init_db(slot_count: int = DEFAULT_MAGAZINE_SLOTS) -> None:
 
             CREATE TABLE IF NOT EXISTS machine_settings (
                 id INTEGER PRIMARY KEY CHECK(id = 1),
-                magazine_slots INTEGER NOT NULL CHECK(magazine_slots BETWEEN 1 AND 60),
+                magazine_slots INTEGER NOT NULL CHECK(magazine_slots BETWEEN 1 AND 250),
                 updated_at TEXT NOT NULL
             );
             """
