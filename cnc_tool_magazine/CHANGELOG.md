@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.1
+
+- Aggiunto in Officina il pulsante evidente **CREA UTENSILE**, che apre su richiesta il modulo di creazione.
+- Aggiunta una barra di ricerca dedicata all'Officina.
+- La ricerca controlla descrizione, tipo, icona, correttori D/H, dimensioni, passo, taglienti, note e materiali.
+- Aggiunti conteggio dei risultati, cancellazione rapida della ricerca e messaggi per elenco vuoto o nessuna corrispondenza.
+
 ## 1.7.0
 
 - Aggiunti otto materiali predefiniti: C45, inox, alluminio, ottone, ghisa, rame, titanio e plastica tecnica.

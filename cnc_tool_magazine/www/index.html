@@ -237,8 +237,17 @@
   <dialog id="inventory-dialog" class="management-dialog">
     <div class="management-content">
       <div class="dialog-head"><div><p class="eyebrow">Magazzino esterno</p><h2>Utensili disponibili in Officina</h2></div><button type="button" class="icon-button" id="close-inventory-dialog">×</button></div>
-      <form id="inventory-form" class="compact-form">
-        <h3>Aggiungi un utensile non montato</h3>
+      <section class="inventory-toolbar" aria-label="Comandi Officina">
+        <button class="button inventory-create-button" id="inventory-create-button" type="button">＋ CREA UTENSILE</button>
+        <label class="inventory-search-field" for="inventory-search">
+          <span aria-hidden="true">⌕</span>
+          <input id="inventory-search" type="search" autocomplete="off" placeholder="Cerca utensile, tipo, D, H o materiale…">
+          <button id="clear-inventory-search" type="button" aria-label="Cancella ricerca" hidden>×</button>
+        </label>
+        <p class="inventory-search-count" id="inventory-search-count" aria-live="polite"></p>
+      </section>
+      <form id="inventory-form" class="compact-form inventory-create-form" hidden>
+        <div class="section-title"><div><p class="eyebrow">Nuovo utensile</p><h3>Crea e aggiungi in Officina</h3></div><button class="mini-button" id="cancel-inventory-create" type="button">Annulla</button></div>
         <div class="form-grid">
           <label><span>Descrizione *</span><input name="description" required placeholder="Es. Fresa MD Ø12"></label>
           <label><span>Tipo</span><input name="tool_type" placeholder="Fresa, punta, maschio…"></label>
@@ -255,7 +264,7 @@
           <div class="section-title"><div><p class="eyebrow">Creazione rapida</p><h3>Materiali predefiniti</h3><p class="subtitle">Seleziona e modifica i materiali da salvare insieme all’utensile.</p></div></div>
           <div id="inventory-preset-list" class="preset-material-list"></div>
         </section>
-        <div class="form-actions"><button class="button" type="submit">Aggiungi in Officina</button></div>
+        <div class="form-actions"><button class="button" type="submit">Crea utensile in Officina</button></div>
       </form>
       <div id="inventory-list" class="inventory-list"></div>
     </div>

@@ -44,6 +44,8 @@ Scansionando il QR si apre direttamente la scheda della posizione. Il telefono d
 
 Apri **Officina** per registrare gli utensili disponibili ma non montati. Il comando **Svuota posizione → Officina** libera il posto fisico e trasferisce automaticamente l'utensile in Officina senza eliminare dati, parametri o documenti. Con **Monta** scegli una delle posizioni configurate senza ricreare i dati; se è occupata, l'utensile presente viene conservato automaticamente in Officina.
 
+In cima all'Officina trovi **CREA UTENSILE**, che apre il modulo completo per aggiungere un nuovo utensile direttamente al magazzino esterno. La barra di ricerca filtra subito l'elenco usando descrizione, tipo di utensile, correttori D/H, dimensioni, note e materiali associati.
+
 Il comando **Sposta** trasferisce un utensile montato in un'altra posizione libera. La pagina **Movimenti** registra automaticamente creazione, montaggio, smontaggio, spostamento e archiviazione.
 
 Durante gli spostamenti il numero **T** viene aggiornato in base alla nuova posizione fisica. I correttori **D e H** restano invece quelli assegnati all'utensile e vengono conservati anche nel passaggio in Officina e nel successivo rimontaggio.
