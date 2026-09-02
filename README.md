@@ -37,7 +37,8 @@
 - Libreria materiali modificabile con otto materiali predefiniti e parametri specifici per ciascun tipo di utensile.
 - Scelta dei materiali predefiniti durante la creazione in macchina o in Officina, con Vc, Fz, ap e ae modificabili prima del salvataggio.
 - Scheda completa degli utensili in Officina e popup separato per ogni materiale con modifica diretta dei parametri.
-- Pulsante **CREA UTENSILE** e ricerca dedicata nell'Officina per descrizione, tipo, D/H e materiali.
+- Pulsante **CREA UTENSILE** e ricerca dedicata nell'Officina per descrizione, tipo, T/D/H e materiali.
+- T, D e H evidenziati insieme nelle schede Officina e parametri materiali caricati automaticamente dalla scelta dell'icona durante la creazione.
 - Allegati PDF, schede tecniche e fotografie associati permanentemente all'utensile.
 - Ricerca globale in utensili montati, storico, Officina, materiali e nomi dei documenti.
 - Esportazione completa in PDF A4, pronta per stampa e condivisione.

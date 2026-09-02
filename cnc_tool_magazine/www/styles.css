@@ -246,6 +246,13 @@ dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
 .inventory-empty strong { display:block; color:var(--text); }
 .inventory-empty p { margin:.4rem 0 0; }
 .inventory-card { display: grid; gap: .7rem; padding: .85rem; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); }
+.corrector-field { padding:.65rem; border:1px solid rgba(54,209,196,.45); border-radius:10px; background:rgba(9,36,44,.72); }
+.corrector-field > span { color:var(--accent-2); font-weight:850; letter-spacing:.035em; }
+.corrector-field input { border-color:#3d6672; font-size:1.08rem; font-weight:850; }
+.tool-correctors { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.45rem; }
+.tool-correctors strong { display:block; padding:.55rem .4rem; border:1px solid rgba(54,209,196,.48); border-radius:9px; background:rgba(16,58,68,.7); color:#eaffff; font-size:1rem; text-align:center; letter-spacing:.04em; }
+.tool-correctors.compact { display:flex; margin-top:.35rem; }
+.tool-correctors.compact strong { min-width:48px; padding:.28rem .4rem; font-size:.82rem; }
 .inventory-card.highlighted { border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(54,209,196,.16); }
 .inventory-head { display: flex; align-items: center; gap: .65rem; }
 .inventory-head small { display: block; color: var(--muted); margin-top: .2rem; }

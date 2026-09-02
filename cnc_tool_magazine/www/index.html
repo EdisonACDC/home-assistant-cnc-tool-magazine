@@ -253,8 +253,9 @@
           <label><span>Tipo</span><input name="tool_type" placeholder="Fresa, punta, maschio…"></label>
           <label><span>Icona</span><select name="icon" id="inventory-icon-select"></select></label>
           <label id="inventory-thread-pitch-field" hidden><span>Passo filettatura (mm)</span><input name="thread_pitch_mm" type="number" min="0" step="0.001" placeholder="Es. 1,5"></label>
-          <label><span>Correttore D</span><input name="d_offset" type="number" min="1" max="250" step="1" placeholder="1-250"></label>
-          <label><span>Correttore H</span><input name="h_offset" type="number" min="1" max="250" step="1" placeholder="1-250"></label>
+          <label class="corrector-field corrector-t"><span>Numero T</span><input name="t_number" type="number" min="1" max="250" step="1" placeholder="T 1-250"></label>
+          <label class="corrector-field corrector-d"><span>Correttore D</span><input name="d_offset" type="number" min="1" max="250" step="1" placeholder="D 1-250"></label>
+          <label class="corrector-field corrector-h"><span>Correttore H</span><input name="h_offset" type="number" min="1" max="250" step="1" placeholder="H 1-250"></label>
           <label><span>Diametro (mm)</span><input name="diameter_mm" type="number" min="0" step="0.001"></label>
           <label><span>Lunghezza (mm)</span><input name="length_mm" type="number" min="0" step="0.001"></label>
           <label><span>Taglienti</span><input name="flutes" type="number" min="1" step="1"></label>
@@ -279,8 +280,9 @@
           <label><span>Tipo utensile</span><input name="tool_type"></label>
           <label><span>Icona</span><select name="icon" id="inventory-tool-icon"></select></label>
           <label id="inventory-tool-thread-pitch-field" hidden><span>Passo filettatura (mm)</span><input name="thread_pitch_mm" type="number" min="0" step="0.001"></label>
-          <label><span>Correttore D</span><input name="d_offset" type="number" min="1" max="250"></label>
-          <label><span>Correttore H</span><input name="h_offset" type="number" min="1" max="250"></label>
+          <label class="corrector-field corrector-t"><span>Numero T</span><input name="t_number" type="number" min="1" max="250"></label>
+          <label class="corrector-field corrector-d"><span>Correttore D</span><input name="d_offset" type="number" min="1" max="250"></label>
+          <label class="corrector-field corrector-h"><span>Correttore H</span><input name="h_offset" type="number" min="1" max="250"></label>
           <label><span>Diametro (mm)</span><input name="diameter_mm" type="number" min="0" step="0.001"></label>
           <label><span>Lunghezza (mm)</span><input name="length_mm" type="number" min="0" step="0.001"></label>
           <label><span>Taglienti Z</span><input name="flutes" type="number" min="1"></label>

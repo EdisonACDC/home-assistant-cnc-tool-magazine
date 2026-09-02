@@ -313,9 +313,10 @@ class DatabaseTests(unittest.TestCase):
     def test_inventory_tool_can_be_created_with_assigned_offsets(self):
         created = app.create_inventory_tool({
             "description": "Fresa preparata in Officina", "icon": "end_mill",
-            "d_offset": 149, "h_offset": 249, "diameter_mm": 12,
+            "t_number": 99, "d_offset": 149, "h_offset": 249, "diameter_mm": 12,
         })
         stored = next(item for item in app.list_inventory() if item["inventory_id"] == created["inventory_id"])
+        self.assertEqual(99, stored["t_number"])
         self.assertEqual(149, stored["d_offset"])
         self.assertEqual(249, stored["h_offset"])
         app.mount_inventory_tool(created["inventory_id"], 6)

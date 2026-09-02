@@ -44,7 +44,9 @@ Scansionando il QR si apre direttamente la scheda della posizione. Il telefono d
 
 Apri **Officina** per registrare gli utensili disponibili ma non montati. Il comando **Svuota posizione → Officina** libera il posto fisico e trasferisce automaticamente l'utensile in Officina senza eliminare dati, parametri o documenti. Con **Monta** scegli una delle posizioni configurate senza ricreare i dati; se è occupata, l'utensile presente viene conservato automaticamente in Officina.
 
-In cima all'Officina trovi **CREA UTENSILE**, che apre il modulo completo per aggiungere un nuovo utensile direttamente al magazzino esterno. La barra di ricerca filtra subito l'elenco usando descrizione, tipo di utensile, correttori D/H, dimensioni, note e materiali associati.
+In cima all'Officina trovi **CREA UTENSILE**, che apre il modulo completo per aggiungere un nuovo utensile direttamente al magazzino esterno. Durante la creazione puoi assegnare T, D e H; questi tre valori sono sempre mostrati insieme e in evidenza nelle schede Officina. La barra di ricerca filtra subito l'elenco usando descrizione, tipo di utensile, numeri T/D/H, dimensioni, note e materiali associati.
+
+Selezionando l'icona di un utensile nuovo, l'app seleziona automaticamente tutti i materiali predefiniti compatibili e carica i parametri specifici per quel tipo. Prima di creare l'utensile puoi deselezionare i materiali non necessari e modificare Vc, Fz, ap e ae; S e F vengono calcolati quando sono disponibili diametro, taglienti o passo.
 
 Il comando **Sposta** trasferisce un utensile montato in un'altra posizione libera. La pagina **Movimenti** registra automaticamente creazione, montaggio, smontaggio, spostamento e archiviazione.
 

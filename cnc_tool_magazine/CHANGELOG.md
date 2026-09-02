@@ -6,6 +6,9 @@
 - Aggiunta una barra di ricerca dedicata all'Officina.
 - La ricerca controlla descrizione, tipo, icona, correttori D/H, dimensioni, passo, taglienti, note e materiali.
 - Aggiunti conteggio dei risultati, cancellazione rapida della ricerca e messaggi per elenco vuoto o nessuna corrispondenza.
+- Aggiunto il numero T nella creazione e nella scheda completa degli utensili in Officina.
+- Evidenziati sempre insieme i valori T, D e H nelle schede e nella scelta di montaggio dall'Officina.
+- Selezionando l'icona durante la creazione, tutti i materiali compatibili e i relativi parametri vengono inseriti automaticamente; i valori restano modificabili prima del salvataggio.
 
 ## 1.7.0
 
