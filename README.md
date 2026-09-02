@@ -4,7 +4,7 @@
 
 # Home Assistant CNC Tool Magazine
 
-[![Version](https://img.shields.io/badge/version-1.7.0-087f74)](https://github.com/EdisonACDC/home-assistant-cnc-tool-magazine/releases)
+[![Version](https://img.shields.io/badge/version-1.7.1-087f74)](https://github.com/EdisonACDC/home-assistant-cnc-tool-magazine/releases)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-add--on-41BDF5)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -37,6 +37,8 @@
 - Libreria materiali modificabile con otto materiali predefiniti e parametri specifici per ciascun tipo di utensile.
 - Scelta dei materiali predefiniti durante la creazione in macchina o in Officina, con Vc, Fz, ap e ae modificabili prima del salvataggio.
 - Scheda completa degli utensili in Officina e popup separato per ogni materiale con modifica diretta dei parametri.
+- Pulsante **CREA UTENSILE** e ricerca dedicata nell'Officina per descrizione, tipo, T/D/H e materiali.
+- T, D e H evidenziati insieme nelle schede Officina e parametri materiali caricati automaticamente dalla scelta dell'icona durante la creazione.
 - Allegati PDF, schede tecniche e fotografie associati permanentemente all'utensile.
 - Ricerca globale in utensili montati, storico, Officina, materiali e nomi dei documenti.
 - Esportazione completa in PDF A4, pronta per stampa e condivisione.
@@ -88,7 +90,7 @@ Home Assistant CNC tool magazine, CNC tool management, milling machine tool data
 
 ## Versione
 
-Versione corrente: **1.7.0**. Consulta il [changelog](cnc_tool_magazine/CHANGELOG.md) per tutte le modifiche.
+Versione corrente: **1.7.1**. Consulta il [changelog](cnc_tool_magazine/CHANGELOG.md) per tutte le modifiche.
 
 ## Licenza
 

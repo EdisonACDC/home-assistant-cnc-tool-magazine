@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.7.1
+
+- Aggiunto in Officina il pulsante evidente **CREA UTENSILE**, che apre su richiesta il modulo di creazione.
+- Aggiunta una barra di ricerca dedicata all'Officina.
+- La ricerca controlla descrizione, tipo, icona, correttori D/H, dimensioni, passo, taglienti, note e materiali.
+- Aggiunti conteggio dei risultati, cancellazione rapida della ricerca e messaggi per elenco vuoto o nessuna corrispondenza.
+- Aggiunto il numero T nella creazione e nella scheda completa degli utensili in Officina.
+- Evidenziati sempre insieme i valori T, D e H nelle schede e nella scelta di montaggio dall'Officina.
+- Selezionando l'icona durante la creazione, tutti i materiali compatibili e i relativi parametri vengono inseriti automaticamente; i valori restano modificabili prima del salvataggio.
+
 ## 1.7.0
 
 - Aggiunti otto materiali predefiniti: C45, inox, alluminio, ottone, ghisa, rame, titanio e plastica tecnica.

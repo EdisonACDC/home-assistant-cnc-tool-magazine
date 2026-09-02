@@ -17,6 +17,9 @@ const labelSheet = document.querySelector("#label-sheet");
 const inventoryDialog = document.querySelector("#inventory-dialog");
 const inventoryForm = document.querySelector("#inventory-form");
 const inventoryList = document.querySelector("#inventory-list");
+const inventorySearchInput = document.querySelector("#inventory-search");
+const inventorySearchCount = document.querySelector("#inventory-search-count");
+const clearInventorySearchButton = document.querySelector("#clear-inventory-search");
 const inventoryToolDialog = document.querySelector("#inventory-tool-dialog");
 const inventoryToolForm = document.querySelector("#inventory-tool-form");
 const inventoryCuttingForm = document.querySelector("#inventory-cutting-form");
@@ -38,10 +41,10 @@ const viselForm = document.querySelector("#visel-form");
 const searchInput = document.querySelector("#search");
 const searchResults = document.querySelector("#search-results");
 const clearSearchButton = document.querySelector("#clear-search");
-const inventoryFields = ["description","tool_type","icon","d_offset","h_offset","diameter_mm","length_mm","thread_pitch_mm","flutes","notes"];
+const inventoryFields = ["description","tool_type","icon","t_number","d_offset","h_offset","diameter_mm","length_mm","thread_pitch_mm","flutes","notes"];
 const templateFields = ["name","tool_icon","vc_m_min","fz_mm_tooth","ap_mm","ae_mm","coolant","notes"];
 const fields = ["t_number","d_offset","h_offset","diameter_mm","length_mm","description","tool_type","icon","thread_pitch_mm","flutes","status","usage_hours","life_hours","notes"];
-const inventoryDetailFields = ["description","tool_type","icon","thread_pitch_mm","d_offset","h_offset","diameter_mm","length_mm","flutes","status","usage_hours","life_hours","notes"];
+const inventoryDetailFields = ["description","tool_type","icon","thread_pitch_mm","t_number","d_offset","h_offset","diameter_mm","length_mm","flutes","status","usage_hours","life_hours","notes"];
 const cuttingFields = ["id","material","coolant","vc_m_min","rpm","fz_mm_tooth","feed_mm_min","ap_mm","ae_mm","notes"];
 const TOOL_ICONS = [
   {id:"end_mill", label:"Fresa cilindrica"},
@@ -99,7 +102,7 @@ function templatesForIcon(icon) {
   return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name, "it"));
 }
 
-function renderPresetPicker(containerId, icon) {
+function renderPresetPicker(containerId, icon, autoSelect = false) {
   const container = document.querySelector(containerId);
   const templates = templatesForIcon(icon);
   if (!icon) {
@@ -108,7 +111,7 @@ function renderPresetPicker(containerId, icon) {
   }
   container.innerHTML = templates.map(item => `
     <article class="preset-material" data-template-id="${item.id}">
-      <label class="preset-check"><input type="checkbox"><strong>${esc(item.name)}</strong></label>
+      <label class="preset-check"><input type="checkbox"${autoSelect ? " checked" : ""}><strong>${esc(item.name)}</strong></label>
       <div class="preset-values">
         <label><span>Vc</span><input class="preset-vc" type="number" min="0" step="0.1" value="${esc(item.vc_m_min ?? "")}"></label>
         <label><span>Fz</span><input class="preset-fz" type="number" min="0" step="0.001" value="${esc(item.fz_mm_tooth ?? "")}"></label>
@@ -572,7 +575,8 @@ async function selectIcon(icon) {
     setToolTypeFromIcon(toolForm, icon);
     updateThreadPitchVisibility(toolForm, "#thread-pitch-field");
     renderSelectedIcon(icon);
-    renderPresetPicker("#tool-preset-list", icon);
+    const currentTool = state.tools.find(tool => tool.slot === state.activeSlot);
+    renderPresetPicker("#tool-preset-list", icon, !isOccupied(currentTool));
     renderTemplateSelect(icon);
     iconDialog.close();
     return;
@@ -939,7 +943,7 @@ document.querySelector("#template-filter-icon").innerHTML = `<option value="all"
 inventoryIconSelect.addEventListener("change", () => {
   setToolTypeFromIcon(inventoryForm, inventoryIconSelect.value);
   updateThreadPitchVisibility(inventoryForm, "#inventory-thread-pitch-field");
-  renderPresetPicker("#inventory-preset-list", inventoryIconSelect.value);
+  renderPresetPicker("#inventory-preset-list", inventoryIconSelect.value, true);
 });
 renderPresetPicker("#inventory-preset-list", "");
 
@@ -955,13 +959,28 @@ function openInventoryDeepLink(id) {
 }
 
 function renderInventory() {
-  inventoryList.innerHTML = state.inventory.length ? state.inventory.map(tool => `
+  const query = inventorySearchInput.value.trim().toLocaleLowerCase("it");
+  const visibleInventory = state.inventory.filter(tool => {
+    if (!query) return true;
+    const searchable = [
+      tool.description, tool.tool_type, iconLabel(tool.icon), tool.t_number, tool.d_offset, tool.h_offset,
+      tool.diameter_mm, tool.length_mm, tool.thread_pitch_mm, tool.flutes, tool.notes,
+      ...(tool.cutting_parameters || []).flatMap(item => [item.material, item.coolant, item.notes]),
+    ].filter(value => value !== null && value !== undefined).join(" ").toLocaleLowerCase("it");
+    return searchable.includes(query) || `t${tool.t_number ?? ""}`.toLocaleLowerCase("it").includes(query) || `d${tool.d_offset ?? ""}`.toLocaleLowerCase("it").includes(query) || `h${tool.h_offset ?? ""}`.toLocaleLowerCase("it").includes(query);
+  });
+  clearInventorySearchButton.hidden = !query;
+  inventorySearchCount.textContent = query
+    ? `${visibleInventory.length} di ${state.inventory.length} utensili trovati`
+    : `${state.inventory.length} utensili disponibili`;
+  inventoryList.innerHTML = visibleInventory.length ? visibleInventory.map(tool => `
     <article class="inventory-card" data-id="${tool.inventory_id}">
-      <div class="inventory-head">${toolIcon(tool.icon, "history-tool-icon")}<div><strong>${esc(tool.description || tool.tool_type)}</strong><small>D${esc(tool.d_offset ?? "—")} · H${esc(tool.h_offset ?? "—")} · ${esc(tool.tool_type || "Tipo non indicato")} · Ø ${esc(tool.diameter_mm ?? "—")} mm${tool.thread_pitch_mm ? ` · P${esc(tool.thread_pitch_mm)} mm` : ""} · Z${esc(tool.flutes ?? "—")}</small></div></div>
+      <div class="inventory-head">${toolIcon(tool.icon, "history-tool-icon")}<div><strong>${esc(tool.description || tool.tool_type)}</strong><small>${esc(tool.tool_type || "Tipo non indicato")} · Ø ${esc(tool.diameter_mm ?? "—")} mm${tool.thread_pitch_mm ? ` · P${esc(tool.thread_pitch_mm)} mm` : ""} · Z${esc(tool.flutes ?? "—")}</small></div></div>
+      <div class="tool-correctors" aria-label="Numeri utensile e correttori"><strong>T${esc(tool.t_number ?? "—")}</strong><strong>D${esc(tool.d_offset ?? "—")}</strong><strong>H${esc(tool.h_offset ?? "—")}</strong></div>
       <div class="material-chips">${(tool.cutting_parameters || []).map(item => `<button class="chip inventory-material-chip" data-index="${item.inventory_cut_index}" type="button">${esc(item.material)}</button>`).join("")}</div>
       <div class="inventory-attachments">${attachmentMarkup(tool.attachments || [])}</div>
       <div class="row-actions inventory-actions"><button class="mini-button open-inventory" type="button">Apri scheda</button><button class="mini-button mount-inventory" type="button">Monta</button><label class="mini-button file-button">Allega<input class="inventory-file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,text/plain" hidden></label><button class="mini-button delete delete-inventory" type="button">Elimina</button></div>
-    </article>`).join("") : `<p class="subtitle">Non ci sono utensili nel magazzino Officina.</p>`;
+    </article>`).join("") : `<div class="inventory-empty"><strong>${query ? "Nessun utensile trovato" : "Nessun utensile in Officina"}</strong><p>${query ? "Prova con descrizione, tipo, correttore D/H o materiale." : "Premi CREA UTENSILE per aggiungere il primo utensile."}</p></div>`;
   inventoryList.querySelectorAll(".open-inventory").forEach(button => button.addEventListener("click", () => openInventoryTool(Number(button.closest("article").dataset.id))));
   inventoryList.querySelectorAll(".inventory-material-chip").forEach(button => button.addEventListener("click", () => openInventoryMaterial(Number(button.closest("article").dataset.id), Number(button.dataset.index))));
   inventoryList.querySelectorAll(".mount-inventory").forEach(button => button.addEventListener("click", () => mountInventory(Number(button.closest("article").dataset.id))));
@@ -1126,7 +1145,7 @@ async function mountInventory(id) {
 function renderMountFromWorkshop() {
   mountFromWorkshopList.innerHTML = state.inventory.length ? state.inventory.map(tool => `
     <article class="mount-workshop-card" data-id="${tool.inventory_id}">
-      <div class="inventory-head">${toolIcon(tool.icon, "history-tool-icon")}<div><strong>${esc(tool.description || tool.tool_type || "Utensile")}</strong><small>D${esc(tool.d_offset ?? "—")} · H${esc(tool.h_offset ?? "—")} · Ø ${esc(tool.diameter_mm ?? "—")} mm${tool.thread_pitch_mm ? ` · P${esc(tool.thread_pitch_mm)} mm` : ""}</small></div></div>
+      <div class="inventory-head">${toolIcon(tool.icon, "history-tool-icon")}<div><strong>${esc(tool.description || tool.tool_type || "Utensile")}</strong><div class="tool-correctors compact"><strong>T${esc(tool.t_number ?? "—")}</strong><strong>D${esc(tool.d_offset ?? "—")}</strong><strong>H${esc(tool.h_offset ?? "—")}</strong></div><small>Ø ${esc(tool.diameter_mm ?? "—")} mm${tool.thread_pitch_mm ? ` · P${esc(tool.thread_pitch_mm)} mm` : ""}</small></div></div>
       <button class="button mount-workshop-tool" type="button">Monta qui</button>
     </article>`).join("") : `<div class="empty-workshop-choice"><strong>Nessun utensile disponibile in Officina</strong><p>Aggiungi prima un utensile nella sezione Officina.</p></div>`;
   mountFromWorkshopList.querySelectorAll(".mount-workshop-tool").forEach(button => button.addEventListener("click", async () => {
@@ -1169,6 +1188,7 @@ inventoryForm.addEventListener("submit", async event => {
     payload.cutting_parameters = selectedPresetCuts("#inventory-preset-list", inventoryForm);
     const result = await request("api/inventory", {method:"POST", body:JSON.stringify(payload)});
     inventoryForm.reset();
+    inventoryForm.hidden = true;
     updateThreadPitchVisibility(inventoryForm, "#inventory-thread-pitch-field");
     await loadInventory();
     renderPresetPicker("#inventory-preset-list", "");
@@ -1179,6 +1199,23 @@ inventoryForm.addEventListener("submit", async event => {
 
 document.querySelector("#inventory-button").addEventListener("click", async () => {
   try { await loadInventory(); inventoryDialog.showModal(); } catch (error) { toast(error.message, true); }
+});
+document.querySelector("#inventory-create-button").addEventListener("click", () => {
+  inventoryForm.hidden = false;
+  inventoryForm.scrollIntoView({behavior:"smooth", block:"start"});
+  setTimeout(() => inventoryForm.elements.description.focus(), 250);
+});
+document.querySelector("#cancel-inventory-create").addEventListener("click", () => {
+  inventoryForm.reset();
+  inventoryForm.hidden = true;
+  updateThreadPitchVisibility(inventoryForm, "#inventory-thread-pitch-field");
+  renderPresetPicker("#inventory-preset-list", "");
+});
+inventorySearchInput.addEventListener("input", renderInventory);
+clearInventorySearchButton.addEventListener("click", () => {
+  inventorySearchInput.value = "";
+  renderInventory();
+  inventorySearchInput.focus();
 });
 document.querySelector("#close-inventory-dialog").addEventListener("click", () => inventoryDialog.close());
 
