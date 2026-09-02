@@ -84,6 +84,27 @@ DEFAULT_TOOL_TYPE_COLORS = {
     "reamer": "#FF7043", "boring_bar": "#795548", "engraving": "#607D8B",
     "probe": "#455A64", "custom": "#7B8794",
 }
+DEFAULT_MATERIAL_PRESETS = (
+    ("Acciaio C45", 180, 0.040, 0.50, 0.50, "Emulsione"),
+    ("Acciaio inox", 90, 0.030, 0.30, 0.30, "Emulsione abbondante"),
+    ("Alluminio", 350, 0.080, 1.00, 2.00, "Aria o emulsione"),
+    ("Ottone", 200, 0.060, 0.80, 1.00, "Aria"),
+    ("Ghisa", 140, 0.050, 0.60, 0.70, "A secco o aria"),
+    ("Rame", 120, 0.045, 0.50, 0.80, "Emulsione"),
+    ("Titanio", 55, 0.020, 0.20, 0.20, "Emulsione abbondante"),
+    ("Plastica tecnica", 250, 0.100, 1.50, 2.50, "Aria"),
+)
+TOOL_PRESET_FACTORS = {
+    "end_mill": (1.00, 1.00, 1.00), "roughing_mill": (0.85, 1.30, 1.40),
+    "ball_nose": (0.85, 0.70, 0.55), "face_mill": (1.10, 1.45, 0.70),
+    "slitting_saw": (0.70, 0.55, 0.35), "t_slot": (0.65, 0.55, 0.45),
+    "dovetail": (0.65, 0.50, 0.40), "chamfer": (0.90, 0.70, 0.45),
+    "drill": (0.75, 0.85, 0.60), "center_drill": (0.65, 0.55, 0.35),
+    "tap": (0.28, 0.00, 0.35), "roll_tap": (0.38, 0.00, 0.35),
+    "thread_comb": (0.55, 0.45, 0.35), "reamer": (0.55, 0.35, 0.30),
+    "boring_bar": (0.75, 0.65, 0.50), "engraving": (0.90, 0.35, 0.25),
+    "probe": (0.00, 0.00, 0.00), "custom": (1.00, 1.00, 1.00),
+}
 CUTTING_FIELDS = {
     "material",
     "vc_m_min",
@@ -644,6 +665,35 @@ def _migrate_position_constraints(db: sqlite3.Connection) -> None:
         db.execute("PRAGMA foreign_keys = ON")
 
 
+def _migrate_material_templates(db: sqlite3.Connection) -> None:
+    """Add tool-specific presets while preserving every existing generic template."""
+    columns = {row[1] for row in db.execute("PRAGMA table_info(material_templates)")}
+    if "tool_icon" in columns:
+        return
+    db.executescript(
+        """
+        ALTER TABLE material_templates RENAME TO material_templates_legacy;
+        CREATE TABLE material_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL COLLATE NOCASE,
+            tool_icon TEXT NOT NULL DEFAULT '',
+            vc_m_min REAL,
+            fz_mm_tooth REAL,
+            ap_mm REAL,
+            ae_mm REAL,
+            coolant TEXT NOT NULL DEFAULT '',
+            notes TEXT NOT NULL DEFAULT '',
+            updated_at TEXT NOT NULL,
+            UNIQUE(name, tool_icon)
+        );
+        INSERT INTO material_templates(id, name, tool_icon, vc_m_min, fz_mm_tooth, ap_mm, ae_mm, coolant, notes, updated_at)
+        SELECT id, name, '', vc_m_min, fz_mm_tooth, ap_mm, ae_mm, coolant, notes, updated_at
+        FROM material_templates_legacy;
+        DROP TABLE material_templates_legacy;
+        """
+    )
+
+
 def init_db(slot_count: int = DEFAULT_MAGAZINE_SLOTS) -> None:
     with connect() as db:
         db.executescript(
@@ -713,14 +763,16 @@ def init_db(slot_count: int = DEFAULT_MAGAZINE_SLOTS) -> None:
 
             CREATE TABLE IF NOT EXISTS material_templates (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                name TEXT NOT NULL COLLATE NOCASE,
+                tool_icon TEXT NOT NULL DEFAULT '',
                 vc_m_min REAL,
                 fz_mm_tooth REAL,
                 ap_mm REAL,
                 ae_mm REAL,
                 coolant TEXT NOT NULL DEFAULT '',
                 notes TEXT NOT NULL DEFAULT '',
-                updated_at TEXT NOT NULL
+                updated_at TEXT NOT NULL,
+                UNIQUE(name, tool_icon)
             );
 
             CREATE TABLE IF NOT EXISTS attachments (
@@ -772,6 +824,7 @@ def init_db(slot_count: int = DEFAULT_MAGAZINE_SLOTS) -> None:
         if "thread_pitch_mm" not in columns:
             db.execute("ALTER TABLE tools ADD COLUMN thread_pitch_mm REAL")
         _migrate_position_constraints(db)
+        _migrate_material_templates(db)
         requested_slots = max(MIN_MAGAZINE_SLOTS, min(MAX_MAGAZINE_SLOTS, int(slot_count)))
         db.execute(
             "INSERT OR IGNORE INTO machine_settings(id, magazine_slots, updated_at) VALUES (1, ?, ?)",
@@ -790,16 +843,20 @@ def init_db(slot_count: int = DEFAULT_MAGAZINE_SLOTS) -> None:
         ).fetchall()
         for row in occupied_rows:
             db.execute("UPDATE tools SET tool_uid = ? WHERE slot = ?", (uuid.uuid4().hex, row["slot"]))
-        starter_templates = [
-            ("Acciaio C45", 180, 0.04, 0.5, 0.5, "Emulsione", "Valori iniziali: verificare con utensile e produttore"),
-            ("Acciaio inox", 90, 0.03, 0.3, 0.3, "Emulsione abbondante", "Valori iniziali: verificare con utensile e produttore"),
-            ("Alluminio", 350, 0.08, 1.0, 2.0, "Aria o emulsione", "Valori iniziali: verificare con utensile e produttore"),
-            ("Ottone", 200, 0.06, 0.8, 1.0, "Aria", "Valori iniziali: verificare con utensile e produttore"),
-        ]
+        starter_templates = []
+        for tool_icon, (vc_factor, fz_factor, depth_factor) in TOOL_PRESET_FACTORS.items():
+            for name, vc, fz, ap, ae, coolant in DEFAULT_MATERIAL_PRESETS:
+                starter_templates.append((
+                    name, tool_icon, round(vc * vc_factor, 1) if vc_factor else None,
+                    round(fz * fz_factor, 3) if fz_factor else None,
+                    round(ap * depth_factor, 2) if depth_factor else None,
+                    round(ae * depth_factor, 2) if depth_factor else None,
+                    coolant, "Valori iniziali indicativi: verificare con utensile, macchina e produttore",
+                ))
         db.executemany(
             """INSERT OR IGNORE INTO material_templates
-               (name, vc_m_min, fz_mm_tooth, ap_mm, ae_mm, coolant, notes, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+               (name, tool_icon, vc_m_min, fz_mm_tooth, ap_mm, ae_mm, coolant, notes, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             [(*item, utc_now()) for item in starter_templates],
         )
         db.execute(
@@ -988,13 +1045,13 @@ def global_search(query: str) -> list[dict]:
                 })
     for template in list_material_templates():
         text = " ".join(str(template.get(field) or "") for field in (
-            "name", "vc_m_min", "fz_mm_tooth", "ap_mm", "ae_mm", "coolant", "notes"
+            "name", "tool_icon", "vc_m_min", "fz_mm_tooth", "ap_mm", "ae_mm", "coolant", "notes"
         )).casefold()
         if needle in text:
             results.append({
                 "type": "material", "title": template["name"], "location": "Libreria materiali",
                 "detail": f"Vc {template.get('vc_m_min') or '—'} · Fz {template.get('fz_mm_tooth') or '—'} · ap {template.get('ap_mm') or '—'} · ae {template.get('ae_mm') or '—'}",
-                "template_id": template["id"],
+                "template_id": template["id"], "tool_icon": template.get("tool_icon", ""),
             })
     return results[:100]
 
@@ -1011,10 +1068,13 @@ def list_inventory() -> list[dict]:
     result = []
     for row in rows:
         tool = json.loads(row["tool_json"])
+        cuts = json.loads(row["cutting_json"])
+        for index, cutting in enumerate(cuts):
+            cutting["inventory_cut_index"] = index
         tool.update({
             "inventory_id": row["id"],
             "tool_uid": row["tool_uid"],
-            "cutting_parameters": json.loads(row["cutting_json"]),
+            "cutting_parameters": cuts,
             "attachments": by_uid.get(row["tool_uid"], []),
             "created_at": row["created_at"],
             "updated_at": row["updated_at"],
@@ -1518,6 +1578,7 @@ def restore_export(payload: dict) -> dict:
             raise ValueError("Libreria materiali non valida")
         normalized_templates.append({
             "name": clean_value("material", raw.get("name")),
+            "tool_icon": str(raw.get("tool_icon") or "").strip(),
             "vc_m_min": clean_value("vc_m_min", raw.get("vc_m_min")),
             "fz_mm_tooth": clean_value("fz_mm_tooth", raw.get("fz_mm_tooth")),
             "ap_mm": clean_value("ap_mm", raw.get("ap_mm")),
@@ -1525,6 +1586,8 @@ def restore_export(payload: dict) -> dict:
             "coolant": clean_value("coolant", raw.get("coolant")),
             "notes": clean_value("notes", raw.get("notes")),
         })
+        if normalized_templates[-1]["tool_icon"] not in TOOL_ICONS:
+            raise ValueError("Tipo utensile della libreria materiali non valido")
     backup_dir = data_dir() / "backups"
     backup_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
@@ -1702,10 +1765,80 @@ def create_inventory_tool(payload: dict) -> dict:
     values["t_number"] = values["t_number"] or None
     values["d_offset"] = values["d_offset"] or None
     values["h_offset"] = values["h_offset"] or None
+    raw_cuts = payload.get("cutting_parameters", [])
+    if not isinstance(raw_cuts, list):
+        raise ValueError("Parametri materiali Officina non validi")
+    cuts = [_clean_cutting_import(item, "creazione utensile Officina") for item in raw_cuts]
+    if len({item["material"].casefold() for item in cuts}) != len(cuts):
+        raise ValueError("Materiali duplicati nella scheda utensile")
     with connect() as db:
-        inventory_id = _store_inventory(db, {**values, "tool_uid": tool_uid}, [])
+        inventory_id = _store_inventory(db, {**values, "tool_uid": tool_uid}, cuts)
         _record_event(db, tool_uid, "created_inventory", "Utensile aggiunto al magazzino Officina")
     return {"ok": True, "inventory_id": inventory_id}
+
+
+def update_inventory_tool(inventory_id: int, payload: dict) -> dict:
+    with connect() as db:
+        row = db.execute("SELECT * FROM inventory_tools WHERE id = ?", (inventory_id,)).fetchone()
+        if not row:
+            raise LookupError("Utensile in Officina non trovato")
+        current = json.loads(row["tool_json"])
+        values = {**current, **{
+            field: clean_value(field, payload[field]) for field in TOOL_FIELDS if field in payload
+        }}
+        if values.get("icon", "") not in TOOL_ICONS or values.get("status", "new") not in TOOL_STATUSES:
+            raise ValueError("Icona o stato utensile non valido")
+        if (values.get("thread_pitch_mm") or 0) < 0:
+            raise ValueError("Il passo della filettatura non può essere negativo")
+        if values.get("icon") in {"tap", "roll_tap", "thread_comb"} and not (values.get("thread_pitch_mm") or 0) > 0:
+            raise ValueError("Inserisci il passo della filettatura")
+        if not (values.get("description") or values.get("tool_type")):
+            raise ValueError("Inserisci almeno una descrizione o il tipo utensile")
+        db.execute(
+            "UPDATE inventory_tools SET tool_json = ?, updated_at = ? WHERE id = ?",
+            (json.dumps({field: values.get(field) for field in TOOL_FIELDS}, ensure_ascii=False), utc_now(), inventory_id),
+        )
+    return next(item for item in list_inventory() if item["inventory_id"] == inventory_id)
+
+
+def upsert_inventory_cutting(inventory_id: int, payload: dict) -> dict:
+    values = _clean_cutting_import(payload, "utensile Officina")
+    original_material = str(payload.get("original_material") or values["material"]).casefold()
+    values["updated_at"] = utc_now()
+    with connect() as db:
+        row = db.execute("SELECT cutting_json FROM inventory_tools WHERE id = ?", (inventory_id,)).fetchone()
+        if not row:
+            raise LookupError("Utensile in Officina non trovato")
+        cuts = json.loads(row["cutting_json"])
+        matching = next((index for index, item in enumerate(cuts) if str(item.get("material", "")).casefold() == original_material), None)
+        duplicate = next((index for index, item in enumerate(cuts) if str(item.get("material", "")).casefold() == values["material"].casefold() and index != matching), None)
+        if duplicate is not None:
+            raise ValueError("Questo materiale è già presente nella scheda utensile")
+        if matching is None:
+            cuts.append(values)
+            matching = len(cuts) - 1
+        else:
+            cuts[matching] = values
+        db.execute(
+            "UPDATE inventory_tools SET cutting_json = ?, updated_at = ? WHERE id = ?",
+            (json.dumps(cuts, ensure_ascii=False), utc_now(), inventory_id),
+        )
+    return {**values, "inventory_cut_index": matching}
+
+
+def delete_inventory_cutting(inventory_id: int, cutting_index: int) -> None:
+    with connect() as db:
+        row = db.execute("SELECT cutting_json FROM inventory_tools WHERE id = ?", (inventory_id,)).fetchone()
+        if not row:
+            raise LookupError("Utensile in Officina non trovato")
+        cuts = json.loads(row["cutting_json"])
+        if cutting_index < 0 or cutting_index >= len(cuts):
+            raise LookupError("Parametro materiale Officina non trovato")
+        cuts.pop(cutting_index)
+        db.execute(
+            "UPDATE inventory_tools SET cutting_json = ?, updated_at = ? WHERE id = ?",
+            (json.dumps(cuts, ensure_ascii=False), utc_now(), inventory_id),
+        )
 
 
 def active_to_inventory(slot: int) -> dict:
@@ -1847,7 +1980,9 @@ def delete_inventory_tool(inventory_id: int) -> None:
 
 def list_material_templates() -> list[dict]:
     with connect() as db:
-        return [row_to_dict(row) for row in db.execute("SELECT * FROM material_templates ORDER BY name COLLATE NOCASE")]
+        return [row_to_dict(row) for row in db.execute(
+            "SELECT * FROM material_templates ORDER BY tool_icon, name COLLATE NOCASE"
+        )]
 
 
 def save_material_template(payload: dict, template_id: int | None = None) -> dict:
@@ -1855,6 +1990,9 @@ def save_material_template(payload: dict, template_id: int | None = None) -> dic
     values = {field: clean_value("material" if field == "name" else field, payload.get(field)) for field in fields}
     if not values["name"]:
         raise ValueError("Il nome del materiale è obbligatorio")
+    values["tool_icon"] = str(payload.get("tool_icon") or "").strip()
+    if values["tool_icon"] not in TOOL_ICONS:
+        raise ValueError("Tipo utensile non valido")
     values["updated_at"] = utc_now()
     with connect() as db:
         if template_id is None:
@@ -2200,6 +2338,8 @@ class Handler(BaseHTTPRequestHandler):
             payload = self.read_json()
             tool_match = re.fullmatch(r"/api/tools/(\d+)", path)
             cutting_match = re.fullmatch(r"/api/tools/(\d+)/cutting", path)
+            inventory_match = re.fullmatch(r"/api/inventory/(\d+)", path)
+            inventory_cutting_match = re.fullmatch(r"/api/inventory/(\d+)/cutting", path)
             history_icon_match = re.fullmatch(r"/api/tools/(\d+)/history/(\d+)/icon", path)
             template_match = re.fullmatch(r"/api/material-templates/(\d+)", path)
             if path == "/api/visel":
@@ -2218,6 +2358,12 @@ class Handler(BaseHTTPRequestHandler):
             if cutting_match:
                 slot = self.valid_slot(cutting_match.group(1))
                 self.send_json(upsert_cutting(slot, payload))
+                return
+            if inventory_cutting_match:
+                self.send_json(upsert_inventory_cutting(int(inventory_cutting_match.group(1)), payload))
+                return
+            if inventory_match:
+                self.send_json(update_inventory_tool(int(inventory_match.group(1)), payload))
                 return
             if history_icon_match:
                 slot = self.valid_slot(history_icon_match.group(1))
@@ -2335,6 +2481,7 @@ class Handler(BaseHTTPRequestHandler):
             cutting_match = re.fullmatch(r"/api/tools/(\d+)/cutting/(\d+)", path)
             history_match = re.fullmatch(r"/api/tools/(\d+)/history/(\d+)", path)
             inventory_match = re.fullmatch(r"/api/inventory/(\d+)", path)
+            inventory_cutting_match = re.fullmatch(r"/api/inventory/(\d+)/cutting/(\d+)", path)
             template_match = re.fullmatch(r"/api/material-templates/(\d+)", path)
             attachment_match = re.fullmatch(r"/api/attachments/(\d+)", path)
             if tool_match:
@@ -2350,6 +2497,10 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if inventory_match:
                 delete_inventory_tool(int(inventory_match.group(1)))
+                self.send_json({"ok": True})
+                return
+            if inventory_cutting_match:
+                delete_inventory_cutting(int(inventory_cutting_match.group(1)), int(inventory_cutting_match.group(2)))
                 self.send_json({"ok": True})
                 return
             if template_match:

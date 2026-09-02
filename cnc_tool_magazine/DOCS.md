@@ -50,7 +50,13 @@ Durante gli spostamenti il numero **T** viene aggiornato in base alla nuova posi
 
 ## Libreria dei materiali
 
-La libreria include modelli iniziali modificabili per C45, acciaio inox, alluminio e ottone. Nel modulo dei parametri scegli un modello per compilare Vc, Fz, ap, ae e refrigerazione. I valori sono soltanto indicativi: devono essere controllati in base a utensile, materiale reale, macchina, serraggio e dati del produttore.
+La libreria include modelli iniziali modificabili per C45, acciaio inox, alluminio, ottone, ghisa, rame, titanio e plastica tecnica. Ogni tipo di utensile ha una propria serie di valori proposti per Vc, Fz, ap, ae e refrigerazione. Puoi filtrare la libreria per tipo, modificare i modelli esistenti o crearne di nuovi.
+
+Durante la creazione di un utensile, sia in una posizione macchina sia in Officina, scegli l'icona/tipo e seleziona uno o più materiali predefiniti. I valori proposti restano modificabili prima del salvataggio; quando diametro, taglienti e passo lo consentono, vengono calcolati anche S e F.
+
+In **Officina**, premi **Apri scheda** per visualizzare e modificare tutti i dati dell'utensile, i correttori D/H, lo stato e i materiali. Toccando un materiale si apre il suo popup dedicato con tutti i parametri; da lì puoi entrare direttamente nella modifica, aggiungere altri materiali o eliminarli.
+
+I valori sono soltanto indicativi: devono essere controllati in base a utensile, materiale reale, macchina, serraggio e dati del produttore.
 
 ## Documenti e fotografie
 

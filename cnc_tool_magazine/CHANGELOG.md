@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.7.0
+
+- Aggiunti otto materiali predefiniti: C45, inox, alluminio, ottone, ghisa, rame, titanio e plastica tecnica.
+- Creati parametri di taglio predefiniti specifici e modificabili per tutti i tipi di utensile disponibili.
+- Aggiunta la selezione dei materiali, con modifica di Vc, Fz, ap e ae, durante la creazione degli utensili in macchina e in Officina.
+- Aggiunta la scheda completa degli utensili in Officina con modifica dei dati, correttori, stato e materiali.
+- Resi apribili i materiali direttamente dalle schede Officina, con popup separato e accesso alla modifica.
+- Aggiunta una migrazione automatica che conserva i modelli materiali personalizzati dei database precedenti.
+
 ## 1.6.0
 
 - Esteso il magazzino macchina fino a 250 posizioni reali.
