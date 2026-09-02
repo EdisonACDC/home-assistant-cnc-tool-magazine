@@ -1,7 +1,7 @@
 "use strict";
 
 const MAGAZINE_GROUP_SIZE = 30;
-const state = { tools: [], inventory: [], templates: [], events: [], validation: {count:0,warnings:[],slots:[]}, machine: {machine_name:"PentaMac / Visel", magazine_slots:30}, visel: null, activeSlot: null, dashboardSlot: 1, magazineGroup: 0, iconTarget: null, mountTargetSlot: null };
+const state = { tools: [], inventory: [], templates: [], events: [], validation: {count:0,warnings:[],slots:[]}, machine: {machine_name:"PentaMac / Visel", magazine_slots:30}, visel: null, activeSlot: null, activeInventoryId: null, dashboardSlot: 1, magazineGroup: 0, iconTarget: null, mountTargetSlot: null };
 const grid = document.querySelector("#tool-grid");
 const dialog = document.querySelector("#tool-dialog");
 const toolForm = document.querySelector("#tool-form");
@@ -17,6 +17,10 @@ const labelSheet = document.querySelector("#label-sheet");
 const inventoryDialog = document.querySelector("#inventory-dialog");
 const inventoryForm = document.querySelector("#inventory-form");
 const inventoryList = document.querySelector("#inventory-list");
+const inventoryToolDialog = document.querySelector("#inventory-tool-dialog");
+const inventoryToolForm = document.querySelector("#inventory-tool-form");
+const inventoryCuttingForm = document.querySelector("#inventory-cutting-form");
+const inventoryCuttingList = document.querySelector("#inventory-cutting-list");
 const mountFromWorkshopDialog = document.querySelector("#mount-from-workshop-dialog");
 const mountFromWorkshopList = document.querySelector("#mount-from-workshop-list");
 const magazineCarousel = document.querySelector("#magazine-carousel");
@@ -35,8 +39,9 @@ const searchInput = document.querySelector("#search");
 const searchResults = document.querySelector("#search-results");
 const clearSearchButton = document.querySelector("#clear-search");
 const inventoryFields = ["description","tool_type","icon","d_offset","h_offset","diameter_mm","length_mm","thread_pitch_mm","flutes","notes"];
-const templateFields = ["name","vc_m_min","fz_mm_tooth","ap_mm","ae_mm","coolant","notes"];
+const templateFields = ["name","tool_icon","vc_m_min","fz_mm_tooth","ap_mm","ae_mm","coolant","notes"];
 const fields = ["t_number","d_offset","h_offset","diameter_mm","length_mm","description","tool_type","icon","thread_pitch_mm","flutes","status","usage_hours","life_hours","notes"];
+const inventoryDetailFields = ["description","tool_type","icon","thread_pitch_mm","d_offset","h_offset","diameter_mm","length_mm","flutes","status","usage_hours","life_hours","notes"];
 const cuttingFields = ["id","material","coolant","vc_m_min","rpm","fz_mm_tooth","feed_mm_min","ap_mm","ae_mm","notes"];
 const TOOL_ICONS = [
   {id:"end_mill", label:"Fresa cilindrica"},
@@ -84,6 +89,58 @@ function setToolTypeFromIcon(form, icon) {
 
 function isThreadingIcon(icon) {
   return icon === "tap" || icon === "roll_tap" || icon === "thread_comb";
+}
+
+function templatesForIcon(icon) {
+  const generic = state.templates.filter(item => !item.tool_icon);
+  const specific = state.templates.filter(item => item.tool_icon === icon);
+  const byName = new Map(generic.map(item => [item.name.toLocaleLowerCase("it"), item]));
+  specific.forEach(item => byName.set(item.name.toLocaleLowerCase("it"), item));
+  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name, "it"));
+}
+
+function renderPresetPicker(containerId, icon) {
+  const container = document.querySelector(containerId);
+  const templates = templatesForIcon(icon);
+  if (!icon) {
+    container.innerHTML = `<p class="subtitle">Scegli prima l’icona del tipo utensile.</p>`;
+    return;
+  }
+  container.innerHTML = templates.map(item => `
+    <article class="preset-material" data-template-id="${item.id}">
+      <label class="preset-check"><input type="checkbox"><strong>${esc(item.name)}</strong></label>
+      <div class="preset-values">
+        <label><span>Vc</span><input class="preset-vc" type="number" min="0" step="0.1" value="${esc(item.vc_m_min ?? "")}"></label>
+        <label><span>Fz</span><input class="preset-fz" type="number" min="0" step="0.001" value="${esc(item.fz_mm_tooth ?? "")}"></label>
+        <label><span>ap</span><input class="preset-ap" type="number" min="0" step="0.01" value="${esc(item.ap_mm ?? "")}"></label>
+        <label><span>ae</span><input class="preset-ae" type="number" min="0" step="0.01" value="${esc(item.ae_mm ?? "")}"></label>
+      </div>
+    </article>`).join("") || `<p class="subtitle">Nessun modello disponibile per questo tipo utensile.</p>`;
+}
+
+function selectedPresetCuts(containerId, dimensionsForm) {
+  const icon = dimensionsForm.elements.icon.value;
+  const diameter = Number(dimensionsForm.elements.diameter_mm.value);
+  const flutes = Number(dimensionsForm.elements.flutes.value);
+  const pitch = Number(dimensionsForm.elements.thread_pitch_mm.value);
+  return [...document.querySelector(containerId).querySelectorAll(".preset-material")]
+    .filter(row => row.querySelector("input[type='checkbox']").checked)
+    .map(row => {
+      const template = state.templates.find(item => item.id === Number(row.dataset.templateId));
+      const vc = Number(row.querySelector(".preset-vc").value) || null;
+      const fz = Number(row.querySelector(".preset-fz").value) || null;
+      const rpm = diameter > 0 && vc > 0 ? Math.round((vc * 1000) / (Math.PI * diameter)) : null;
+      const feed = rpm && isThreadingIcon(icon) && pitch > 0
+        ? Math.round(rpm * pitch)
+        : rpm && flutes > 0 && fz > 0 ? Math.round(rpm * flutes * fz) : null;
+      return {
+        material:template.name, coolant:template.coolant || "", vc_m_min:vc, rpm,
+        fz_mm_tooth:fz, feed_mm_min:feed,
+        ap_mm:Number(row.querySelector(".preset-ap").value) || null,
+        ae_mm:Number(row.querySelector(".preset-ae").value) || null,
+        notes:template.notes || "",
+      };
+    });
 }
 
 function updateThreadPitchVisibility(form, fieldId) {
@@ -335,7 +392,13 @@ function openMaterial(slot, materialId) {
         <div><small>Larghezza ae</small><strong>${parameterValue(item.ae_mm, " mm")}</strong></div>
       </div>
       ${item.notes ? `<p class="material-notes"><strong>Note:</strong> ${esc(item.notes)}</p>` : ""}
+      <div class="form-actions"><button class="button edit-popup-material" type="button">Modifica parametri</button></div>
     </article>`;
+  materialsDialogList.querySelector(".edit-popup-material").addEventListener("click", () => {
+    materialsDialog.close();
+    openTool(slot);
+    editCutting(materialId);
+  });
   materialsDialog.showModal();
 }
 
@@ -380,6 +443,8 @@ function openTool(slot, historyId = null) {
   fields.forEach(field => { toolForm.elements[field].value = tool[field] ?? ""; });
   renderSelectedIcon(tool.icon);
   updateThreadPitchVisibility(toolForm, "#thread-pitch-field");
+  renderPresetPicker("#tool-preset-list", tool.icon);
+  renderTemplateSelect(tool.icon);
   clearCutting();
   renderCutting(tool);
   renderHistory(tool);
@@ -463,10 +528,10 @@ function clearCutting() {
   document.querySelector("#material-template").value = "";
 }
 
-function renderTemplateSelect() {
+function renderTemplateSelect(icon = toolForm.elements.icon.value) {
   const select = document.querySelector("#material-template");
   const current = select.value;
-  select.innerHTML = `<option value="">Inserimento manuale</option>${state.templates.map(item => `<option value="${item.id}">${esc(item.name)}</option>`).join("")}`;
+  select.innerHTML = `<option value="">Inserimento manuale</option>${templatesForIcon(icon).map(item => `<option value="${item.id}">${esc(item.name)}</option>`).join("")}`;
   if ([...select.options].some(option => option.value === current)) select.value = current;
 }
 
@@ -507,6 +572,8 @@ async function selectIcon(icon) {
     setToolTypeFromIcon(toolForm, icon);
     updateThreadPitchVisibility(toolForm, "#thread-pitch-field");
     renderSelectedIcon(icon);
+    renderPresetPicker("#tool-preset-list", icon);
+    renderTemplateSelect(icon);
     iconDialog.close();
     return;
   }
@@ -525,9 +592,13 @@ toolForm.addEventListener("submit", async event => {
   event.preventDefault();
   try {
     await request(`api/tools/${state.activeSlot}`, {method:"PUT", body:JSON.stringify(formData(toolForm, fields))});
+    const presets = selectedPresetCuts("#tool-preset-list", toolForm);
+    for (const material of presets) {
+      await request(`api/tools/${state.activeSlot}/cutting`, {method:"PUT", body:JSON.stringify(material)});
+    }
     await loadTools();
     openRefresh();
-    toast(`Utensile del posto ${state.activeSlot} salvato`);
+    toast(`Utensile del posto ${state.activeSlot} salvato${presets.length ? ` · ${presets.length} materiali aggiunti` : ""}`);
   } catch (error) { toast(error.message, true); }
 });
 
@@ -556,6 +627,8 @@ function openRefresh() {
   const tool = state.tools.find(item => item.slot === state.activeSlot);
   fields.forEach(field => { toolForm.elements[field].value = tool[field] ?? ""; });
   renderSelectedIcon(tool.icon);
+  renderPresetPicker("#tool-preset-list", tool.icon);
+  renderTemplateSelect(tool.icon);
   renderCutting(tool);
   renderHistory(tool);
   renderUsage(tool);
@@ -860,10 +933,15 @@ labelsDialog.addEventListener("click", event => { if (event.target === labelsDia
 
 const inventoryIconSelect = document.querySelector("#inventory-icon-select");
 inventoryIconSelect.innerHTML = `<option value="">Nessuna icona</option>${TOOL_ICONS.map(item => `<option value="${item.id}">${esc(item.label)}</option>`).join("")}`;
+document.querySelector("#inventory-tool-icon").innerHTML = inventoryIconSelect.innerHTML;
+document.querySelector("#template-tool-icon").innerHTML = `<option value="">Generico per tutti</option>${TOOL_ICONS.map(item => `<option value="${item.id}">${esc(item.label)}</option>`).join("")}`;
+document.querySelector("#template-filter-icon").innerHTML = `<option value="all">Tutti i tipi</option><option value="">Generici</option>${TOOL_ICONS.map(item => `<option value="${item.id}">${esc(item.label)}</option>`).join("")}`;
 inventoryIconSelect.addEventListener("change", () => {
   setToolTypeFromIcon(inventoryForm, inventoryIconSelect.value);
   updateThreadPitchVisibility(inventoryForm, "#inventory-thread-pitch-field");
+  renderPresetPicker("#inventory-preset-list", inventoryIconSelect.value);
 });
+renderPresetPicker("#inventory-preset-list", "");
 
 async function loadInventory() {
   const data = await request("api/inventory");
@@ -872,23 +950,20 @@ async function loadInventory() {
 }
 
 function openInventoryDeepLink(id) {
-  renderInventory();
-  inventoryDialog.showModal();
-  const card = inventoryList.querySelector(`[data-id="${id}"]`);
-  if (card) {
-    card.classList.add("highlighted");
-    setTimeout(() => card.scrollIntoView({behavior:"smooth", block:"center"}), 100);
-  }
+  inventoryDialog.close();
+  openInventoryTool(id);
 }
 
 function renderInventory() {
   inventoryList.innerHTML = state.inventory.length ? state.inventory.map(tool => `
     <article class="inventory-card" data-id="${tool.inventory_id}">
       <div class="inventory-head">${toolIcon(tool.icon, "history-tool-icon")}<div><strong>${esc(tool.description || tool.tool_type)}</strong><small>D${esc(tool.d_offset ?? "—")} · H${esc(tool.h_offset ?? "—")} · ${esc(tool.tool_type || "Tipo non indicato")} · Ø ${esc(tool.diameter_mm ?? "—")} mm${tool.thread_pitch_mm ? ` · P${esc(tool.thread_pitch_mm)} mm` : ""} · Z${esc(tool.flutes ?? "—")}</small></div></div>
-      <div class="material-chips">${(tool.cutting_parameters || []).map(item => `<span class="chip">${esc(item.material)}</span>`).join("")}</div>
+      <div class="material-chips">${(tool.cutting_parameters || []).map(item => `<button class="chip inventory-material-chip" data-index="${item.inventory_cut_index}" type="button">${esc(item.material)}</button>`).join("")}</div>
       <div class="inventory-attachments">${attachmentMarkup(tool.attachments || [])}</div>
-      <div class="row-actions inventory-actions"><button class="mini-button mount-inventory" type="button">Monta</button><label class="mini-button file-button">Allega<input class="inventory-file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,text/plain" hidden></label><button class="mini-button delete delete-inventory" type="button">Elimina</button></div>
+      <div class="row-actions inventory-actions"><button class="mini-button open-inventory" type="button">Apri scheda</button><button class="mini-button mount-inventory" type="button">Monta</button><label class="mini-button file-button">Allega<input class="inventory-file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,text/plain" hidden></label><button class="mini-button delete delete-inventory" type="button">Elimina</button></div>
     </article>`).join("") : `<p class="subtitle">Non ci sono utensili nel magazzino Officina.</p>`;
+  inventoryList.querySelectorAll(".open-inventory").forEach(button => button.addEventListener("click", () => openInventoryTool(Number(button.closest("article").dataset.id))));
+  inventoryList.querySelectorAll(".inventory-material-chip").forEach(button => button.addEventListener("click", () => openInventoryMaterial(Number(button.closest("article").dataset.id), Number(button.dataset.index))));
   inventoryList.querySelectorAll(".mount-inventory").forEach(button => button.addEventListener("click", () => mountInventory(Number(button.closest("article").dataset.id))));
   inventoryList.querySelectorAll(".delete-inventory").forEach(button => button.addEventListener("click", () => removeInventory(Number(button.closest("article").dataset.id))));
   inventoryList.querySelectorAll(".inventory-file").forEach(input => input.addEventListener("change", async event => {
@@ -908,6 +983,129 @@ function renderInventory() {
     } catch (error) { toast(error.message, true); }
   }));
 }
+
+function activeInventoryTool() {
+  return state.inventory.find(item => item.inventory_id === state.activeInventoryId);
+}
+
+function renderInventoryTemplateSelect() {
+  const select = document.querySelector("#inventory-material-template");
+  const icon = inventoryToolForm.elements.icon.value;
+  select.innerHTML = `<option value="">Inserimento manuale</option>${templatesForIcon(icon).map(item => `<option value="${item.id}">${esc(item.name)}</option>`).join("")}`;
+}
+
+function clearInventoryCutting() {
+  inventoryCuttingForm.reset();
+  inventoryCuttingForm.elements.original_material.value = "";
+  renderInventoryTemplateSelect();
+}
+
+function renderInventoryCutting() {
+  const tool = activeInventoryTool();
+  const cuts = tool?.cutting_parameters || [];
+  inventoryCuttingList.innerHTML = cuts.length ? cuts.map(item => `
+    <article class="cutting-row" data-index="${item.inventory_cut_index}">
+      <div><strong>${esc(item.material)}</strong><small>${esc(item.coolant || "Senza refrigerazione indicata")}</small></div>
+      <div><small>Vc</small>${esc(item.vc_m_min ?? "—")} m/min</div>
+      <div><small>S</small>${esc(item.rpm ?? "—")} rpm</div>
+      <div><small>Fz</small>${esc(item.fz_mm_tooth ?? "—")}</div>
+      <div><small>F</small>${esc(item.feed_mm_min ?? "—")} mm/min</div>
+      <div class="row-actions"><button class="mini-button edit-inventory-cutting" type="button">Modifica</button><button class="mini-button delete delete-inventory-cutting" type="button">Elimina</button></div>
+    </article>`).join("") : `<p class="subtitle">Nessun materiale inserito per questo utensile.</p>`;
+  inventoryCuttingList.querySelectorAll(".edit-inventory-cutting").forEach(button => button.addEventListener("click", () => {
+    const item = activeInventoryTool().cutting_parameters.find(value => value.inventory_cut_index === Number(button.closest("article").dataset.index));
+    inventoryCuttingForm.elements.original_material.value = item.material;
+    cuttingFields.filter(field => field !== "id").forEach(field => { inventoryCuttingForm.elements[field].value = item[field] ?? ""; });
+    inventoryCuttingForm.elements.material.focus();
+  }));
+  inventoryCuttingList.querySelectorAll(".delete-inventory-cutting").forEach(button => button.addEventListener("click", async () => {
+    if (!confirm("Eliminare questi parametri di taglio dall’utensile in Officina?")) return;
+    try {
+      await request(`api/inventory/${state.activeInventoryId}/cutting/${button.closest("article").dataset.index}`, {method:"DELETE"});
+      await loadInventory();
+      renderInventoryCutting();
+      clearInventoryCutting();
+      toast("Parametri eliminati");
+    } catch (error) { toast(error.message, true); }
+  }));
+}
+
+function openInventoryTool(id) {
+  const tool = state.inventory.find(item => item.inventory_id === id);
+  if (!tool) return;
+  state.activeInventoryId = id;
+  document.querySelector("#inventory-tool-title").textContent = tool.description || tool.tool_type || "Utensile Officina";
+  inventoryDetailFields.forEach(field => { inventoryToolForm.elements[field].value = tool[field] ?? ""; });
+  updateThreadPitchVisibility(inventoryToolForm, "#inventory-tool-thread-pitch-field");
+  renderInventoryTemplateSelect();
+  clearInventoryCutting();
+  renderInventoryCutting();
+  if (!inventoryToolDialog.open) inventoryToolDialog.showModal();
+}
+
+function openInventoryMaterial(id, cuttingIndex) {
+  const tool = state.inventory.find(item => item.inventory_id === id);
+  const item = tool?.cutting_parameters.find(value => value.inventory_cut_index === cuttingIndex);
+  if (!tool || !item) return;
+  document.querySelector("#materials-dialog-title").textContent = item.material;
+  document.querySelector("#materials-dialog-tool").textContent = `Officina · ${tool.description || tool.tool_type || "Utensile"}`;
+  document.querySelector("#materials-dialog-icon").innerHTML = toolIcon(tool.icon, "popup-tool-icon");
+  materialsDialogList.innerHTML = `
+    <article class="material-detail"><div class="material-detail-head"><h3>Parametri di taglio</h3><span class="chip">${esc(item.coolant || "Refrigerazione non indicata")}</span></div>
+      <div class="parameter-grid">
+        <div><small>Velocità Vc</small><strong>${parameterValue(item.vc_m_min, " m/min")}</strong></div><div><small>Giri S</small><strong>${parameterValue(item.rpm, " rpm")}</strong></div>
+        <div><small>Avanzamento Fz</small><strong>${parameterValue(item.fz_mm_tooth, " mm/dente")}</strong></div><div><small>Avanzamento F</small><strong>${parameterValue(item.feed_mm_min, " mm/min")}</strong></div>
+        <div><small>Profondità ap</small><strong>${parameterValue(item.ap_mm, " mm")}</strong></div><div><small>Larghezza ae</small><strong>${parameterValue(item.ae_mm, " mm")}</strong></div>
+      </div>${item.notes ? `<p class="material-notes"><strong>Note:</strong> ${esc(item.notes)}</p>` : ""}
+      <div class="form-actions"><button class="button edit-inventory-popup-material" type="button">Modifica parametri</button></div>
+    </article>`;
+  materialsDialogList.querySelector(".edit-inventory-popup-material").addEventListener("click", () => {
+    materialsDialog.close();
+    openInventoryTool(id);
+    const editButton = inventoryCuttingList.querySelector(`[data-index="${cuttingIndex}"] .edit-inventory-cutting`);
+    editButton?.click();
+  });
+  materialsDialog.showModal();
+}
+
+document.querySelector("#inventory-tool-icon").addEventListener("change", event => {
+  setToolTypeFromIcon(inventoryToolForm, event.target.value);
+  updateThreadPitchVisibility(inventoryToolForm, "#inventory-tool-thread-pitch-field");
+  renderInventoryTemplateSelect();
+});
+
+document.querySelector("#inventory-material-template").addEventListener("change", event => {
+  const template = state.templates.find(item => item.id === Number(event.target.value));
+  if (!template) return;
+  const mapping = {material:"name", vc_m_min:"vc_m_min", fz_mm_tooth:"fz_mm_tooth", ap_mm:"ap_mm", ae_mm:"ae_mm", coolant:"coolant", notes:"notes"};
+  Object.entries(mapping).forEach(([field, source]) => { inventoryCuttingForm.elements[field].value = template[source] ?? ""; });
+});
+
+inventoryToolForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  try {
+    await request(`api/inventory/${state.activeInventoryId}`, {method:"PUT", body:JSON.stringify(formData(inventoryToolForm, inventoryDetailFields))});
+    await loadInventory();
+    openInventoryTool(state.activeInventoryId);
+    toast("Scheda utensile Officina salvata");
+  } catch (error) { toast(error.message, true); }
+});
+
+inventoryCuttingForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const payload = formData(inventoryCuttingForm, ["original_material", ...cuttingFields.filter(field => field !== "id")]);
+  try {
+    await request(`api/inventory/${state.activeInventoryId}/cutting`, {method:"PUT", body:JSON.stringify(payload)});
+    await loadInventory();
+    renderInventoryCutting();
+    clearInventoryCutting();
+    toast("Materiale Officina salvato");
+  } catch (error) { toast(error.message, true); }
+});
+
+document.querySelector("#clear-inventory-cutting").addEventListener("click", clearInventoryCutting);
+document.querySelector("#inventory-tool-mount").addEventListener("click", () => mountInventory(state.activeInventoryId));
+document.querySelector("#close-inventory-tool-dialog").addEventListener("click", () => inventoryToolDialog.close());
 
 async function mountInventory(id) {
   const value = prompt(`In quale posizione vuoi montare l'utensile? Inserisci un numero da 1 a ${state.tools.length}.`);
@@ -967,11 +1165,15 @@ async function removeInventory(id) {
 inventoryForm.addEventListener("submit", async event => {
   event.preventDefault();
   try {
-    await request("api/inventory", {method:"POST", body:JSON.stringify(formData(inventoryForm, inventoryFields))});
+    const payload = formData(inventoryForm, inventoryFields);
+    payload.cutting_parameters = selectedPresetCuts("#inventory-preset-list", inventoryForm);
+    const result = await request("api/inventory", {method:"POST", body:JSON.stringify(payload)});
     inventoryForm.reset();
     updateThreadPitchVisibility(inventoryForm, "#inventory-thread-pitch-field");
     await loadInventory();
-    toast("Utensile aggiunto in Officina");
+    renderPresetPicker("#inventory-preset-list", "");
+    toast(`Utensile aggiunto in Officina${payload.cutting_parameters.length ? ` · ${payload.cutting_parameters.length} materiali` : ""}`);
+    openInventoryTool(result.inventory_id);
   } catch (error) { toast(error.message, true); }
 });
 
@@ -1000,8 +1202,10 @@ function clearTemplateForm() {
 }
 
 function renderTemplateList() {
-  templateList.innerHTML = state.templates.map(item => `
-    <article class="template-row" data-id="${item.id}"><div><strong>${esc(item.name)}</strong><small>Vc ${esc(item.vc_m_min ?? "—")} · Fz ${esc(item.fz_mm_tooth ?? "—")} · ap ${esc(item.ap_mm ?? "—")} · ae ${esc(item.ae_mm ?? "—")}</small></div><div class="row-actions"><button class="mini-button edit-template" type="button">Modifica</button><button class="mini-button delete delete-template" type="button">Elimina</button></div></article>`).join("");
+  const filterIcon = document.querySelector("#template-filter-icon").value;
+  const visibleTemplates = state.templates.filter(item => filterIcon === "all" || item.tool_icon === filterIcon);
+  templateList.innerHTML = visibleTemplates.map(item => `
+    <article class="template-row" data-id="${item.id}"><div class="template-identity">${toolIcon(item.tool_icon, "history-tool-icon")}<div><strong>${esc(item.name)}</strong><small>${esc(item.tool_icon ? iconLabel(item.tool_icon) : "Generico per tutti")} · Vc ${esc(item.vc_m_min ?? "—")} · Fz ${esc(item.fz_mm_tooth ?? "—")} · ap ${esc(item.ap_mm ?? "—")} · ae ${esc(item.ae_mm ?? "—")}</small></div></div><div class="row-actions"><button class="mini-button edit-template" type="button">Modifica</button><button class="mini-button delete delete-template" type="button">Elimina</button></div></article>`).join("") || `<p class="subtitle">Nessun modello per questo tipo utensile.</p>`;
   templateList.querySelectorAll(".edit-template").forEach(button => button.addEventListener("click", () => {
     const item = state.templates.find(value => value.id === Number(button.closest("article").dataset.id));
     templateForm.elements.id.value = item.id;
@@ -1032,6 +1236,7 @@ templateForm.addEventListener("submit", async event => {
 });
 
 document.querySelector("#materials-library-button").addEventListener("click", () => { renderTemplateList(); materialLibraryDialog.showModal(); });
+document.querySelector("#template-filter-icon").addEventListener("change", renderTemplateList);
 document.querySelector("#clear-template").addEventListener("click", clearTemplateForm);
 document.querySelector("#close-material-library-dialog").addEventListener("click", () => materialLibraryDialog.close());
 

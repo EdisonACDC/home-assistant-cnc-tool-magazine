@@ -1,5 +1,5 @@
 name: CNC Tool Magazine
-version: "1.6.0"
+version: "1.7.0"
 slug: cnc_tool_magazine
 description: Gestione responsive del magazzino utensili CNC per PentaMac/Visel
 url: https://github.com/EdisonACDC/home-assistant-cnc-tool-magazine

@@ -246,6 +246,17 @@ dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
 .inventory-actions { margin-top: auto; flex-wrap: wrap; }
 .template-list, .events-list { display: grid; gap: .55rem; }
 .template-row { display: flex; align-items: center; justify-content: space-between; gap: .7rem; padding: .7rem; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); }
+.template-filter { margin:1rem 0 .7rem; max-width:320px; }
+.template-identity { display:flex; align-items:center; gap:.7rem; min-width:0; }
+.preset-picker { margin:1rem 0; padding:1rem; border:1px solid var(--line); border-radius:12px; background:#0b1820; }
+.preset-material-list { display:grid; gap:.65rem; max-height:420px; overflow:auto; }
+.preset-material { display:grid; gap:.55rem; padding:.7rem; border:1px solid #294753; border-radius:10px; background:var(--panel); }
+.preset-check { display:flex; grid-template-columns:none; align-items:center; gap:.55rem; color:var(--text); }
+.preset-check input { width:20px; height:20px; margin:0; }
+.preset-values { display:grid; grid-template-columns:repeat(4,minmax(70px,1fr)); gap:.45rem; }
+.preset-values input { padding:.5rem; }
+.inventory-tool-dialog { width:min(1050px,calc(100% - 1rem)); }
+.inventory-cutting-section { margin-top:1rem; }
 .template-row.highlighted { border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(54,209,196,.16); }
 .template-row small, .event-row small { display: block; color: var(--muted); margin-top: .2rem; }
 .event-row { display: flex; align-items: flex-start; gap: .7rem; padding: .75rem; border-bottom: 1px solid var(--line); }
@@ -316,6 +327,7 @@ dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
   .inventory-list { grid-template-columns: 1fr; }
   .tool-type-color-list { grid-template-columns: 1fr; }
   .attachment-row, .template-row { align-items: stretch; flex-direction: column; }
+  .preset-values { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 @media (max-width: 430px) {
   .magazine-carousel-wrap { min-height:320px; }

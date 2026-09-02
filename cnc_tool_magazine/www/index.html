@@ -117,6 +117,10 @@
         <div class="usage-actions"><button class="button secondary" type="button" id="start-usage">▶ Avvia</button><button class="button secondary" type="button" id="stop-usage">■ Ferma</button></div>
       </div>
       <label><span>Note utensile</span><textarea name="notes" rows="2" maxlength="500"></textarea></label>
+      <section class="preset-picker">
+        <div class="section-title"><div><p class="eyebrow">Creazione rapida</p><h3>Materiali predefiniti per questo utensile</h3><p class="subtitle">Seleziona i materiali da aggiungere; puoi modificare i valori prima di salvare.</p></div></div>
+        <div id="tool-preset-list" class="preset-material-list"></div>
+      </section>
       <div class="form-actions">
         <button class="button secondary" type="button" id="reset-tool">Svuota posizione → Officina</button>
         <button class="button secondary" type="button" id="archive-tool">Archivia e inserisci nuovo</button>
@@ -247,9 +251,57 @@
           <label><span>Taglienti</span><input name="flutes" type="number" min="1" step="1"></label>
         </div>
         <label><span>Note</span><textarea name="notes" rows="2"></textarea></label>
+        <section class="preset-picker">
+          <div class="section-title"><div><p class="eyebrow">Creazione rapida</p><h3>Materiali predefiniti</h3><p class="subtitle">Seleziona e modifica i materiali da salvare insieme all’utensile.</p></div></div>
+          <div id="inventory-preset-list" class="preset-material-list"></div>
+        </section>
         <div class="form-actions"><button class="button" type="submit">Aggiungi in Officina</button></div>
       </form>
       <div id="inventory-list" class="inventory-list"></div>
+    </div>
+  </dialog>
+
+  <dialog id="inventory-tool-dialog" class="management-dialog inventory-tool-dialog">
+    <div class="management-content">
+      <div class="dialog-head"><div><p class="eyebrow">Scheda Officina</p><h2 id="inventory-tool-title">Utensile</h2><p class="subtitle">Modifica utensile, correttori e materiali senza montarlo in macchina.</p></div><button type="button" class="icon-button" id="close-inventory-tool-dialog">×</button></div>
+      <form id="inventory-tool-form" class="compact-form">
+        <div class="form-grid">
+          <label><span>Descrizione *</span><input name="description" required></label>
+          <label><span>Tipo utensile</span><input name="tool_type"></label>
+          <label><span>Icona</span><select name="icon" id="inventory-tool-icon"></select></label>
+          <label id="inventory-tool-thread-pitch-field" hidden><span>Passo filettatura (mm)</span><input name="thread_pitch_mm" type="number" min="0" step="0.001"></label>
+          <label><span>Correttore D</span><input name="d_offset" type="number" min="1" max="250"></label>
+          <label><span>Correttore H</span><input name="h_offset" type="number" min="1" max="250"></label>
+          <label><span>Diametro (mm)</span><input name="diameter_mm" type="number" min="0" step="0.001"></label>
+          <label><span>Lunghezza (mm)</span><input name="length_mm" type="number" min="0" step="0.001"></label>
+          <label><span>Taglienti Z</span><input name="flutes" type="number" min="1"></label>
+          <label><span>Stato</span><select name="status"><option value="new">Nuovo</option><option value="in_use">In uso</option><option value="to_sharpen">Da affilare</option><option value="maintenance">In manutenzione</option><option value="worn">Fuori servizio</option></select></label>
+          <label><span>Ore utilizzate</span><input name="usage_hours" type="number" min="0" step="0.01"></label>
+          <label><span>Vita prevista (ore)</span><input name="life_hours" type="number" min="0" step="0.01"></label>
+        </div>
+        <label><span>Note</span><textarea name="notes" rows="2"></textarea></label>
+        <div class="form-actions"><button class="button secondary" id="inventory-tool-mount" type="button">Monta utensile</button><button class="button" type="submit">Salva scheda</button></div>
+      </form>
+      <section class="cutting-section inventory-cutting-section">
+        <div class="section-title"><div><p class="eyebrow">Lavorazione</p><h3>Materiali dell’utensile</h3></div></div>
+        <div id="inventory-cutting-list" class="cutting-list"></div>
+        <form id="inventory-cutting-form" class="cutting-form">
+          <input type="hidden" name="original_material">
+          <div class="form-grid">
+            <label><span>Modello per questo tipo</span><select id="inventory-material-template"><option value="">Inserimento manuale</option></select></label>
+            <label><span>Materiale *</span><input name="material" required></label>
+            <label><span>Refrigerazione</span><input name="coolant"></label>
+            <label><span>Vc (m/min)</span><input name="vc_m_min" type="number" min="0" step="0.1"></label>
+            <label><span>Giri S (rpm)</span><input name="rpm" type="number" min="0" step="1"></label>
+            <label><span>Fz (mm/dente)</span><input name="fz_mm_tooth" type="number" min="0" step="0.001"></label>
+            <label><span>Avanzamento F (mm/min)</span><input name="feed_mm_min" type="number" min="0" step="0.1"></label>
+            <label><span>Profondità ap (mm)</span><input name="ap_mm" type="number" min="0" step="0.01"></label>
+            <label><span>Larghezza ae (mm)</span><input name="ae_mm" type="number" min="0" step="0.01"></label>
+          </div>
+          <label><span>Note materiale</span><textarea name="notes" rows="2"></textarea></label>
+          <div class="form-actions"><button class="button secondary" id="clear-inventory-cutting" type="button">Nuovo</button><button class="button" type="submit">Salva materiale</button></div>
+        </form>
+      </section>
     </div>
   </dialog>
 
@@ -270,6 +322,7 @@
         <input type="hidden" name="id">
         <div class="form-grid">
           <label><span>Materiale *</span><input name="name" required></label>
+          <label><span>Tipo utensile</span><select name="tool_icon" id="template-tool-icon"></select></label>
           <label><span>Vc (m/min)</span><input name="vc_m_min" type="number" min="0" step="0.1"></label>
           <label><span>Fz (mm/dente)</span><input name="fz_mm_tooth" type="number" min="0" step="0.001"></label>
           <label><span>ap (mm)</span><input name="ap_mm" type="number" min="0" step="0.01"></label>
@@ -279,6 +332,7 @@
         <label><span>Note</span><textarea name="notes" rows="2"></textarea></label>
         <div class="form-actions"><button class="button secondary" type="button" id="clear-template">Nuovo</button><button class="button" type="submit">Salva modello</button></div>
       </form>
+      <label class="template-filter"><span>Mostra modelli per</span><select id="template-filter-icon"></select></label>
       <div id="template-list" class="template-list"></div>
     </div>
   </dialog>

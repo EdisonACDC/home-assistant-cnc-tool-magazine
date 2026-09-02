@@ -323,6 +323,29 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(149, mounted["d_offset"])
         self.assertEqual(249, mounted["h_offset"])
 
+    def test_inventory_full_sheet_can_be_created_and_edited_with_materials(self):
+        created = app.create_inventory_tool({
+            "description": "Fresa Officina completa", "icon": "end_mill", "d_offset": 111, "h_offset": 211,
+            "diameter_mm": 10, "flutes": 4,
+            "cutting_parameters": [
+                {"material": "Acciaio C45", "vc_m_min": 180, "rpm": 5730, "feed_mm_min": 917},
+                {"material": "Alluminio", "vc_m_min": 350, "rpm": 11140},
+            ],
+        })
+        inventory_id = created["inventory_id"]
+        stored = app.list_inventory()[0]
+        self.assertEqual(2, len(stored["cutting_parameters"]))
+        self.assertEqual([0, 1], [item["inventory_cut_index"] for item in stored["cutting_parameters"]])
+        updated = app.update_inventory_tool(inventory_id, {"description": "Fresa Officina modificata", "d_offset": 112})
+        self.assertEqual("Fresa Officina modificata", updated["description"])
+        self.assertEqual(112, updated["d_offset"])
+        app.upsert_inventory_cutting(inventory_id, {
+            "original_material": "Acciaio C45", "material": "C45 finitura", "vc_m_min": 200, "rpm": 6366,
+        })
+        self.assertEqual("C45 finitura", app.list_inventory()[0]["cutting_parameters"][0]["material"])
+        app.delete_inventory_cutting(inventory_id, 1)
+        self.assertEqual(1, len(app.list_inventory()[0]["cutting_parameters"]))
+
     def test_empty_position_moves_tool_to_inventory_without_deleting_it(self):
         app.update_tool(18, {"description": "Fresa da conservare", "diameter_mm": 16, "d_offset": 118, "h_offset": 218})
         app.upsert_cutting(18, {"material": "C45", "vc_m_min": 175})
@@ -380,6 +403,44 @@ class DatabaseTests(unittest.TestCase):
         updated = app.save_material_template({"name": "POM", "vc_m_min": 280}, created["id"])
         self.assertEqual("POM", updated["name"])
         self.assertEqual(280, updated["vc_m_min"])
+
+    def test_material_library_has_editable_presets_for_every_tool_type(self):
+        templates = app.list_material_templates()
+        for icon in app.TOOL_ICONS - {""}:
+            matching = [item for item in templates if item["tool_icon"] == icon]
+            self.assertEqual(8, len(matching), icon)
+            self.assertIn("Acciaio C45", {item["name"] for item in matching})
+        end_mill_c45 = next(item for item in templates if item["tool_icon"] == "end_mill" and item["name"] == "Acciaio C45")
+        tap_c45 = next(item for item in templates if item["tool_icon"] == "tap" and item["name"] == "Acciaio C45")
+        self.assertNotEqual(end_mill_c45["vc_m_min"], tap_c45["vc_m_min"])
+        updated = app.save_material_template({
+            "name": "Acciaio C45", "tool_icon": "end_mill", "vc_m_min": 195,
+        }, end_mill_c45["id"])
+        self.assertEqual("end_mill", updated["tool_icon"])
+        self.assertEqual(195, updated["vc_m_min"])
+
+    def test_migrates_generic_material_library_without_losing_custom_values(self):
+        with app.connect() as db:
+            db.executescript("""
+                DROP TABLE material_templates;
+                CREATE TABLE material_templates (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                    vc_m_min REAL, fz_mm_tooth REAL, ap_mm REAL, ae_mm REAL,
+                    coolant TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '',
+                    updated_at TEXT NOT NULL
+                );
+                INSERT INTO material_templates(
+                    name, vc_m_min, fz_mm_tooth, ap_mm, ae_mm, coolant, notes, updated_at
+                ) VALUES ('Materiale personale', 91, 0.04, 0.8, 0.3, 'Aria', 'Conservare', '2026-09-01');
+            """)
+        app.init_db()
+        templates = app.list_material_templates()
+        custom = next(item for item in templates if item["name"] == "Materiale personale")
+        self.assertEqual("", custom["tool_icon"])
+        self.assertEqual(91, custom["vc_m_min"])
+        self.assertEqual("Conservare", custom["notes"])
+        self.assertTrue(any(item["tool_icon"] == "end_mill" for item in templates))
 
     def test_attachments_follow_tool_between_slot_and_inventory(self):
         app.update_tool(2, {"description": "Fresa documentata"})
