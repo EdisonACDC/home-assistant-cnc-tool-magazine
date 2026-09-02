@@ -1,4 +1,4 @@
-# CNC Tool Magazine 1.7.1
+# CNC Tool Magazine 1.7.2
 
 Add-on per Home Assistant dedicato alla gestione del magazzino utensili di una fresatrice CNC PentaMac con sistema Visel.
 

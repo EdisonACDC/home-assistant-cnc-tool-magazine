@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.2
+
+- Corretto il pulsante **CREA UTENSILE** che in alcune finestre Home Assistant non rendeva visibile il modulo.
+- Il modulo ora usa uno stato di apertura esplicito e viene portato automaticamente nella parte visibile della finestra.
+- Abilitato lo scorrimento interno di tutte le finestre su schermi bassi, telefono e pannelli Home Assistant incorporati.
+
 ## 1.7.1
 
 - Aggiunto in Officina il pulsante evidente **CREA UTENSILE**, che apre su richiesta il modulo di creazione.
