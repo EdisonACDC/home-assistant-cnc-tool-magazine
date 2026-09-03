@@ -1188,7 +1188,7 @@ inventoryForm.addEventListener("submit", async event => {
     payload.cutting_parameters = selectedPresetCuts("#inventory-preset-list", inventoryForm);
     const result = await request("api/inventory", {method:"POST", body:JSON.stringify(payload)});
     inventoryForm.reset();
-    inventoryForm.hidden = true;
+    inventoryForm.classList.add("is-collapsed");
     updateThreadPitchVisibility(inventoryForm, "#inventory-thread-pitch-field");
     await loadInventory();
     renderPresetPicker("#inventory-preset-list", "");
@@ -1201,13 +1201,15 @@ document.querySelector("#inventory-button").addEventListener("click", async () =
   try { await loadInventory(); inventoryDialog.showModal(); } catch (error) { toast(error.message, true); }
 });
 document.querySelector("#inventory-create-button").addEventListener("click", () => {
-  inventoryForm.hidden = false;
-  inventoryForm.scrollIntoView({behavior:"smooth", block:"start"});
-  setTimeout(() => inventoryForm.elements.description.focus(), 250);
+  inventoryForm.classList.remove("is-collapsed");
+  requestAnimationFrame(() => {
+    inventoryForm.scrollIntoView({behavior:"smooth", block:"start"});
+    inventoryForm.elements.description.focus({preventScroll:true});
+  });
 });
 document.querySelector("#cancel-inventory-create").addEventListener("click", () => {
   inventoryForm.reset();
-  inventoryForm.hidden = true;
+  inventoryForm.classList.add("is-collapsed");
   updateThreadPitchVisibility(inventoryForm, "#inventory-thread-pitch-field");
   renderPresetPicker("#inventory-preset-list", "");
 });

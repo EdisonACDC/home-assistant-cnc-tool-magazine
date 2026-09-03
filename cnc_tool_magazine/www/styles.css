@@ -151,7 +151,7 @@ textarea { resize: vertical; }
 .material-chip { cursor: pointer; font: inherit; }
 .material-chip:hover, .material-chip:focus-visible { background: rgba(24,169,153,.32); border-color: var(--accent-2); outline: none; }
 .empty-state { text-align: center; color: var(--muted); padding: 3rem; }
-dialog { width: min(920px,calc(100% - 1rem)); max-height: calc(100vh - 1rem); padding: 0; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: var(--text); box-shadow: 0 30px 90px #000; }
+dialog { width: min(920px,calc(100% - 1rem)); max-height: calc(100vh - 1rem); padding: 0; overflow-y:auto; overscroll-behavior:contain; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: var(--text); box-shadow: 0 30px 90px #000; }
 dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
 #tool-form, .cutting-section, .history-section, .attachments-section { padding: 1.25rem; }
 .dialog-head, .section-title { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--line); margin-bottom: 1rem; padding-bottom: .7rem; }
@@ -242,6 +242,7 @@ dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(4px); }
 .inventory-search-field button { border:0; background:transparent; color:var(--muted); font-size:1.65rem; }
 .inventory-search-count { min-height:1.1rem; margin:0; color:var(--muted); font-size:.8rem; }
 .inventory-create-form { margin-bottom:1rem; padding:1rem; border:1px solid var(--line); border-radius:13px; background:#0d171f; }
+.inventory-create-form.is-collapsed { display:none; }
 .inventory-empty { grid-column:1/-1; padding:1.4rem; border:1px dashed var(--line); border-radius:11px; color:var(--muted); text-align:center; }
 .inventory-empty strong { display:block; color:var(--text); }
 .inventory-empty p { margin:.4rem 0 0; }
