@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.3
+
+- Impedito il caricamento misto tra pagina aggiornata e vecchio JavaScript conservato dalla cache.
+- Aggiunta una versione esplicita agli indirizzi di CSS e JavaScript per forzarne il rinnovo su PC, tablet e telefono.
+- Disabilitata la cache delle risorse dell'interfaccia nelle risposte del server add-on.
+- Confermato il funzionamento uniforme dei comandi **CREA UTENSILE** e ricerca Officina dopo l'aggiornamento.
+
 ## 1.7.2
 
 - Corretto il pulsante **CREA UTENSILE** che in alcune finestre Home Assistant non rendeva visibile il modulo.
